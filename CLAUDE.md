@@ -60,13 +60,13 @@ This protocol applies when ending a Beads implementation workflow. It is subordi
 
 ## Build & Test
 
-_Add your build and test commands here_
-
 ```bash
-# Example:
-# npm install
-# npm test
+cargo run --release   # play the game
+cargo test            # game-logic tests (no window needed)
 ```
+
+macroquad is built with default features off: the only default is audio, which
+needs ALSA dev headers. Turn it back on in `Cargo.toml` if sound is added.
 
 ## Architecture Overview
 
