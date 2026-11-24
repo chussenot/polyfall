@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "tetris",
+  "project_id": "6a6664c9-4bde-47b7-bdc3-ec2f84b9b960"
+}
