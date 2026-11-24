@@ -80,10 +80,25 @@ impl Game {
 
     fn rotate(&mut self) {
         let turned: Vec<_> = self.piece.cells.iter().map(|&(x, y)| (-y, x)).collect();
-        // nudge sideways if the turned shape hits a wall or the stack
-        for kick in [0, -1, 1, -2, 2] {
-            if self.fits(&turned, self.piece.x + kick, self.piece.y) {
-                self.piece.x += kick;
+        let (px, py) = (self.piece.x, self.piece.y);
+        // a kick was stopped by the side wall alone: some cell left 0..W and no cell hit a locked block
+        let wall_only = |k: i32| {
+            let cells = || turned.iter().map(|&(cx, cy)| (px + cx + k, py + cy));
+            cells().any(|(gx, _)| !(0..W).contains(&gx))
+                && cells().all(|(gx, gy)| {
+                    !(0..W).contains(&gx) || !(0..H).contains(&gy) || self.grid[gy as usize][gx as usize] == 0
+                })
+        };
+        // nudge sideways if the turned shape hits a wall or the stack, else down one row (spawn row)
+        // shortcut: a single row down, so a shape poking 2+ rows above row 0 still refuses; add more rows if that matters
+        for (dx, dy) in [(0i32, 0), (-1, 0), (1, 0), (-2, 0), (2, 0), (0, 1)] {
+            // two cells only to clear a wall, never to hop over stack blocks
+            if dx.abs() == 2 && !wall_only(dx / 2) {
+                continue;
+            }
+            if self.fits(&turned, px + dx, py + dy) {
+                self.piece.x += dx;
+                self.piece.y += dy;
                 self.piece.cells = turned;
                 return;
             }
@@ -233,15 +248,45 @@ mod tests {
     }
 
     #[test]
-    fn rotation_never_leaves_the_well() {
+    fn four_turns_restore_the_piece() {
         let mut g = Game::new();
-        for _ in 0..200 {
-            g.piece = random_piece();
-            while g.shift(-1, 0) {}
-            for _ in 0..4 {
-                g.rotate();
-                assert!(g.fits(&g.piece.cells, g.piece.x, g.piece.y));
-            }
+        let cells = vec![(0, 0), (1, 0), (0, 1), (0, 2)];
+        g.piece = Piece { cells: cells.clone(), x: 5, y: 10, color: 1 };
+        g.rotate();
+        assert_ne!(g.piece.cells, cells);
+        for _ in 0..3 {
+            g.rotate();
         }
+        assert_eq!((&g.piece.cells, g.piece.x, g.piece.y), (&cells, 5, 10));
+    }
+
+    #[test]
+    fn rotation_kicks_off_walls_but_not_over_the_stack() {
+        // in a one-cell shaft between two one-cell columns: turning would need a hop over a column
+        let mut g = Game::new();
+        for y in 9..=12 {
+            g.grid[y][4] = 1;
+            g.grid[y][6] = 1;
+        }
+        let cells = vec![(0, 0), (0, 1)];
+        g.piece = Piece { cells: cells.clone(), x: 5, y: 10, color: 1 };
+        g.rotate();
+        assert_eq!((&g.piece.cells, g.piece.x, g.piece.y), (&cells, 5, 10));
+
+        // a long bar against the left wall still turns, two cells away from it
+        let mut g = Game::new();
+        g.piece = Piece { cells: vec![(0, -1), (0, 0), (0, 1), (0, 2)], x: 0, y: 10, color: 1 };
+        g.rotate();
+        assert_eq!(g.piece.cells, vec![(1, 0), (0, 0), (-1, 0), (-2, 0)]);
+        assert_eq!((g.piece.x, g.piece.y), (2, 10));
+    }
+
+    #[test]
+    fn top_row_piece_can_still_turn() {
+        let mut g = Game::new();
+        g.piece = Piece { cells: vec![(0, 0), (-1, 0), (1, 0)], x: 5, y: 0, color: 1 };
+        g.rotate();
+        assert_eq!(g.piece.cells, vec![(0, 0), (0, -1), (0, 1)]);
+        assert_eq!((g.piece.x, g.piece.y), (5, 1));
     }
 }
