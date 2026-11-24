@@ -12,3 +12,4 @@
 !.pact/events.jsonl
 !.pact/messages.jsonl
 !.pact/plan.json
+/target
