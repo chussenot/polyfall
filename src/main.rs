@@ -158,8 +158,9 @@ impl Game {
         draw_text(&format!("Lines {}", self.lines), px, 70.0, 28.0, WHITE);
         draw_text(&format!("Level {}", self.level() + 1), px, 100.0, 28.0, WHITE);
         draw_text("Next", px, 150.0, 28.0, GRAY);
+        let left = self.next.cells.iter().map(|c| c.0).min().unwrap();
         for &(cx, cy) in &self.next.cells {
-            draw_cell(px + 70.0 + cx as f32 * CELL, 170.0 + (self.next.y + cy) as f32 * CELL, self.next.color);
+            draw_cell(px + (cx - left) as f32 * CELL,170.0 + (self.next.y + cy) as f32 * CELL, self.next.color);
         }
         for (i, line) in ["Left/Right  move", "Up  rotate", "Down  soft drop", "Space  hard drop", "R  restart"]
             .iter()
@@ -230,6 +231,20 @@ mod tests {
         assert_eq!((g.lines, g.score), (1, 100));
         assert_eq!(g.grid[bottom][5], 2);
         assert_eq!(g.grid[bottom].iter().filter(|&&c| c != 0).count(), 1);
+        assert!(!g.over);
+    }
+
+    #[test]
+    fn blocked_spawn_area_ends_the_game() {
+        let mut g = Game::new();
+        for row in &mut g.grid[..5] {
+            *row = [1; W as usize];
+            row[0] = 0; // gap so the row is not cleared; spawns never reach column 0
+        }
+        g.piece = Piece { cells: vec![(0, 0)], x: 0, y: H - 1, color: 3 };
+        g.lock();
+        assert_eq!(g.lines, 0);
+        assert!(g.over);
     }
 
     #[test]
