@@ -49,6 +49,7 @@ struct Game {
     lines: u32,
     fall: f32,
     over: bool,
+    paused: bool,
 }
 
 impl Game {
@@ -61,6 +62,7 @@ impl Game {
             lines: 0,
             fall: 0.0,
             over: false,
+            paused: false,
         }
     }
 
@@ -231,7 +233,7 @@ async fn main() {
         if is_key_pressed(KeyCode::R) {
             game = Game::new();
         }
-        if !game.over {
+        if !game.over && !game.paused {
             game.update();
         }
         game.draw();
