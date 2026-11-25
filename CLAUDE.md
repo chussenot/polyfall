@@ -60,9 +60,14 @@ This protocol applies when ending a Beads implementation workflow. It is subordi
 
 ## Build & Test
 
+Use the mise tasks (`mise tasks` lists them all):
+
 ```bash
-cargo run --release   # play the game
-cargo test            # game-logic tests (no window needed)
+mise run run          # play the game
+mise run dev          # run and restart on source changes
+mise run test         # game-logic tests (no window needed)
+mise run check        # lint + tests + docs build; run before a commit
+mise run docs         # serve the documentation locally
 ```
 
 macroquad is built with default features off: the only default is audio, which

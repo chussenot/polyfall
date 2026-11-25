@@ -1,3 +1,45 @@
 [tools]
 rust = { version = "latest", mr_boxington = true }
 mr-boxington = "latest"
+watchexec = "latest"
+"pipx:mkdocs" = "1.6.1"
+
+[tasks.run]
+description = "Play the game (optimised build)"
+run = "cargo run --release"
+
+[tasks.dev]
+description = "Run the game and restart it whenever the source changes"
+run = "watchexec --restart --exts rs,toml -- cargo run"
+
+[tasks.test]
+description = "Run the game-logic tests (no window needed)"
+run = "cargo test"
+
+[tasks.lint]
+description = "Check formatting and lints"
+run = ["cargo fmt --check", "cargo clippy --all-targets -- -D warnings"]
+
+[tasks.fmt]
+description = "Format the source"
+run = "cargo fmt"
+
+[tasks.check]
+description = "Everything to pass before a commit: lint, tests, docs"
+depends = ["lint", "test", "docs-build"]
+
+[tasks.build]
+description = "Build the optimised binary at target/release/polyfall"
+run = "cargo build --release"
+
+[tasks.docs]
+description = "Serve the documentation locally with live reload"
+run = "mkdocs serve"
+
+[tasks.docs-build]
+description = "Build the documentation and fail on any warning"
+run = "mkdocs build --strict"
+
+[tasks.screenshot]
+description = "Capture the running game window to docs/assets/screenshot.png (needs ImageMagick and X11/XWayland)"
+run = "import -window Polyfall docs/assets/screenshot.png"
