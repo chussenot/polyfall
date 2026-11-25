@@ -1,9 +1,10 @@
 site_name: Polyfall
-site_description: Reverse documentation of Polyfall, recovered from src/main.rs.
+site_description: How Polyfall works and how to develop it, described from src/main.rs.
 docs_dir: docs
 
 nav:
   - Overview: index.md
+  - Development: development.md
   - Architecture:
       - Context: architecture/context.md
       - Containers: architecture/containers.md
@@ -15,7 +16,7 @@ nav:
       - Rendering and layout: reference/rendering-and-layout.md
       - Game state: reference/game-state.md
       - Tests: reference/tests.md
-      - Limits and inconsistencies: reference/limits.md
+      - Limits and edge cases: reference/limits.md
 
 extra_javascript:
   - https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js

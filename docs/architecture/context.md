@@ -1,67 +1,61 @@
 ---
 title: Context
-description: C4 level 1 - the player, the Polyfall program, and the operating system window and keyboard it depends on.
+description: The player, the Polyfall program, and the keyboard and window it gets from the operating system (C4 level 1).
 source:
   - main
   - conf
   - Game::update
   - Game::draw
-  - PRODUCT.md
 ---
 
 # Context (C4 level 1)
 
-Polyfall has one kind of user and two external dependencies, both provided by
-the operating system: a keyboard and a window.
+This page shows Polyfall from the outside: who uses it and what it exchanges
+with the rest of the machine. Read it first to learn the limits of the program.
+
+Polyfall has one user, the player, and two things it needs from the operating
+system: a keyboard to read and a window to draw in.
+
+The diagram shows the only path through the program: keys go in, frames come
+out.
 
 ```mermaid
 flowchart LR
-    Player([Player])
-    Keyboard[OS keyboard]
-    Game[Polyfall]
-    Window[OS window]
-    Player -->|presses keys| Keyboard
-    Keyboard -->|key state| Game
-    Game -->|draws frames| Window
-    Window -->|shows the game| Player
+    Player(["Player"])
+    Keyboard["Keyboard"]
+    Game["Polyfall"]
+    Window["Window"]
+    Player -->|"presses keys"| Keyboard
+    Keyboard -->|"key state"| Game
+    Game -->|"draws frames"| Window
+    Window -->|"shows the game"| Player
 ```
 
-## Actors and systems
+## What goes in
 
-| Element | Role | Evidence in the code |
+| Input | Read with | Used for |
 | --- | --- | --- |
-| Player | One person at a keyboard. `PRODUCT.md` names a single player, the author. | No player identity, account or name exists anywhere in `src/main.rs`. |
-| Polyfall | The program: one process, one window. | `main`, annotated `#[macroquad::main(conf)]`. |
-| OS keyboard | The only input. | `is_key_pressed`, `is_key_down`, `get_keys_down` in `main` and `Game::update`. |
-| OS window | The only output. | `conf()` and the `draw_*` calls reached from `Game::draw`. |
+| The keys Left, Right, Up, Down, Space, P and R | `is_key_pressed`, `is_key_down` | Playing. See [Controls and timing](../reference/controls-and-timing.md). |
+| The set of all keys held down | `get_keys_down` | Only to detect that the player is idle. |
+| The time the last frame took | `get_frame_time` | Every timer in the game. |
+| The system clock, once at start | `macroquad::miniquad::date::now` | The seed of the random generator. |
 
-## What crosses the boundary
+## What comes out
 
-Inputs read by the program:
+Drawn frames in one window, and nothing else. `conf()` describes the window:
 
-- Key state for Left, Right, Up, Down, Space, P and R.
-- The set of all keys currently held (`get_keys_down()`), used only to detect
-  idleness.
-- Frame time (`get_frame_time()`).
-- The system clock, once, at start: `rand::srand(macroquad::miniquad::date::now() as u64)`.
-
-Outputs produced by the program:
-
-- Drawn frames in one window titled `Polyfall`.
-
-Nothing else crosses the boundary. The source contains no mouse, touch or
-gamepad calls, no file or network calls, and no audio calls.
-
-## The window
-
-`conf()` requests:
-
-| Field | Value |
+| `Conf` field | Value |
 | --- | --- |
 | `window_title` | `"Polyfall"` |
-| `window_width` | `VIEW_W as i32` = 560 |
-| `window_height` | `VIEW_H as i32` = 660 |
+| `window_width` | `VIEW_W as i32`, which is 560 |
+| `window_height` | `VIEW_H as i32`, which is 660 |
 | `window_resizable` | `false` |
 | `high_dpi` | `true` |
 
-All other `Conf` fields keep their defaults.
+All other `Conf` fields keep their default values.
+
+## What does not exist
+
+The source has no mouse, touch or gamepad call, no file call, no network call
+and no audio call. The player has no name or account. Score and game state live
+in memory and are lost when the window closes.
