@@ -53,6 +53,7 @@ struct Game {
     lines: u32,
     fall: f32,
     held: f32, // seconds Left/Right has been held, for key repeat
+    idle: f32, // seconds of active play with no key pressed or held
     over: bool,
     paused: bool,
     cleared: Vec<usize>, // rows removed by the last lock, as they were before the collapse
@@ -62,6 +63,7 @@ struct Game {
 
 const REPEAT_DELAY: f32 = 0.17;
 const REPEAT_RATE: f32 = 0.05;
+const IDLE_PAUSE: f32 = 8.0; // seconds without a key before the game pauses itself
 
 impl Game {
     fn new() -> Self {
@@ -73,6 +75,7 @@ impl Game {
             lines: 0,
             fall: 0.0,
             held: 0.0,
+            idle: 0.0,
             over: false,
             paused: false,
             cleared: Vec::new(),
@@ -170,6 +173,12 @@ impl Game {
     fn repeats(before: f32, after: f32) -> i32 {
         let due = |t: f32| if t < REPEAT_DELAY { 0 } else { 1 + ((t - REPEAT_DELAY) / REPEAT_RATE) as i32 };
         due(after) - due(before)
+    }
+
+    /// Pauses after `IDLE_PAUSE` seconds of play without a key; the count restarts once paused or over.
+    fn tick_idle(&mut self, dt: f32, key_active: bool) {
+        self.idle = if key_active || self.over || self.paused { 0.0 } else { self.idle + dt };
+        self.paused |= self.idle >= IDLE_PAUSE;
     }
 
     fn update(&mut self) {
@@ -340,6 +349,7 @@ async fn main() {
         if is_key_pressed(KeyCode::P) && !game.over {
             game.paused = !game.paused;
         }
+        game.tick_idle(get_frame_time(), !get_keys_down().is_empty());
         if !game.over && !game.paused {
             game.update();
         }
@@ -489,5 +499,26 @@ mod tests {
         assert_eq!(Game::repeats(0.16, 0.18), 1);
         assert_eq!(Game::repeats(0.18, 0.20), 0);
         assert_eq!(Game::repeats(0.0, 0.28), 3); // one long frame owes every step it skipped
+    }
+
+    #[test]
+    fn idle_play_pauses_itself() {
+        let mut g = Game::new();
+        g.tick_idle(5.0, false);
+        assert_eq!((g.idle, g.paused), (5.0, false));
+        g.tick_idle(0.1, true); // a key restarts the count
+        g.tick_idle(5.0, false);
+        assert_eq!((g.idle, g.paused), (5.0, false));
+        g.tick_idle(3.0, false);
+        assert!(g.paused);
+        g.tick_idle(0.1, false); // paused: the count restarts, so resuming gets a full 8 s
+        g.paused = false;
+        g.tick_idle(0.1, false);
+        assert_eq!((g.idle, g.paused), (0.1, false));
+
+        let mut g = Game::new();
+        g.over = true;
+        g.tick_idle(60.0, false);
+        assert!(!g.paused);
     }
 }
