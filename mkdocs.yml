@@ -1,0 +1,22 @@
+site_name: Polyfall
+site_description: Reverse documentation of Polyfall, recovered from src/main.rs.
+docs_dir: docs
+
+nav:
+  - Overview: index.md
+  - Architecture:
+      - Context: architecture/context.md
+      - Containers: architecture/containers.md
+      - Components: architecture/components.md
+  - Reference:
+      - Game rules: reference/game-rules.md
+      - Controls and timing: reference/controls-and-timing.md
+      - Rotation and kicks: reference/rotation-and-kicks.md
+      - Rendering and layout: reference/rendering-and-layout.md
+      - Game state: reference/game-state.md
+      - Tests: reference/tests.md
+      - Limits and inconsistencies: reference/limits.md
+
+extra_javascript:
+  - https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js
+  - js/mermaid-init.js
