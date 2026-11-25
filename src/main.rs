@@ -9,7 +9,8 @@ const VIEW_H: f32 = H as f32 * CELL;
 const TEXT: Color = Color::new(0.90, 0.91, 0.94, 1.0);
 const DIM: Color = Color::new(0.50, 0.53, 0.62, 1.0);
 const FLASH: f32 = 0.25; // seconds the cleared-row band takes to fade
-const GLOW: f32 = 0.8; // seconds the level number stays highlighted
+const GLOW: f32 = 1.3; // seconds the level number stays highlighted
+const GLOW_FADE: f32 = 0.7; // the last part of GLOW, spent fading; before that the highlight is at full strength
 const BG: Color = Color::new(0.07, 0.08, 0.11, 1.0);
 const WELL: Color = Color::new(0.12, 0.13, 0.18, 1.0);
 // one colour per cell count (3, 4, 5): blue / orange / pale sand, rising in lightness so they also read without hue
@@ -49,6 +50,7 @@ struct Game {
     grid: Grid,
     piece: Piece,
     next: Piece,
+    after: Piece, // the piece that follows `next`
     score: u32,
     lines: u32,
     fall: f32,
@@ -71,6 +73,7 @@ impl Game {
             grid: [[0; W as usize]; H as usize],
             piece: random_piece(),
             next: random_piece(),
+            after: random_piece(),
             score: 0,
             lines: 0,
             fall: 0.0,
@@ -156,7 +159,7 @@ impl Game {
             self.glow = GLOW;
         }
         self.fall = 0.0;
-        self.piece = std::mem::replace(&mut self.next, random_piece());
+        self.piece = std::mem::replace(&mut self.next, std::mem::replace(&mut self.after, random_piece()));
         self.over = !self.fits(&self.piece.cells, self.piece.x, self.piece.y);
     }
 
@@ -266,33 +269,30 @@ impl Game {
         let level = (self.level() + 1).to_string();
         draw_text("LEVEL", px + 80.0, 112.0, 16.0, DIM);
         draw_text(&level, px + 80.0, 140.0, 28.0, TEXT);
-        draw_text(&level, px + 80.0, 140.0, 28.0, Color { a: self.glow / GLOW, ..COLORS[2] });
+        draw_text(&level, px + 80.0, 140.0, 28.0, Color { a: (self.glow / GLOW_FADE).min(1.0), ..COLORS[1] });
 
-        // a fixed 160 px slot; the piece (at most 5 cells = 150 px either way) is centred in it
-        let (by, side) = (192.0, 160.0);
-        draw_text("NEXT", px, by - 10.0, 16.0, DIM);
-        draw_rectangle(px, by, side, side, WELL);
-        draw_rectangle_lines(px, by, side, side, 2.0, DIM);
-        let n = &self.next;
-        let span = |f: fn(&(i32, i32)) -> i32| {
-            let (lo, hi) = (n.cells.iter().map(f).min().unwrap(), n.cells.iter().map(f).max().unwrap());
-            (side - (hi - lo + 1) as f32 * CELL) / 2.0 - lo as f32 * CELL
+        // a fixed square slot per upcoming piece; the piece (at most 5 cells either way) is centred in it
+        let preview = |p: &Piece, by: f32, side: f32, cell: f32| {
+            draw_rectangle(px, by, side, side, WELL);
+            draw_rectangle_lines(px, by, side, side, 2.0, DIM);
+            let span = |f: fn(&(i32, i32)) -> i32| {
+                let (lo, hi) = (p.cells.iter().map(f).min().unwrap(), p.cells.iter().map(f).max().unwrap());
+                (side - (hi - lo + 1) as f32 * cell) / 2.0 - lo as f32 * cell
+            };
+            let (ox, oy) = (px + span(|c| c.0), by + span(|c| c.1));
+            for &(cx, cy) in &p.cells {
+                let (x, y) = (ox + cx as f32 * cell, oy + cy as f32 * cell);
+                draw_rectangle(x + 1.0, y + 1.0, cell - 2.0, cell - 2.0, COLORS[p.color as usize - 1]);
+            }
         };
-        let (ox, oy) = (px + span(|c| c.0), by + span(|c| c.1));
-        for &(cx, cy) in &n.cells {
-            draw_cell(ox + cx as f32 * CELL, oy + cy as f32 * CELL, n.color);
-        }
+        draw_text("NEXT", px, 182.0, 16.0, DIM);
+        preview(&self.next, 192.0, 160.0, CELL);
+        draw_text("THEN", px, 392.0, 14.0, DIM);
+        preview(&self.after, 402.0, 80.0, CELL / 2.0);
 
-        let keys = [
-            ("Left/Right", "move"),
-            ("Up", "rotate"),
-            ("Down", "soft drop"),
-            ("Space", "hard drop"),
-            ("P", "pause"),
-            ("R", "restart"),
-        ];
+        let keys = [("Left/Right", "move"), ("Up", "rotate"), ("Down", "soft drop"), ("Space", "hard drop"), ("P", "pause")];
         for (i, (key, action)) in keys.iter().enumerate() {
-            let y = 392.0 + i as f32 * 24.0;
+            let y = 522.0 + i as f32 * 24.0;
             draw_text(key, px, y, 18.0, TEXT);
             draw_text(action, px + 96.0, y, 18.0, DIM);
         }
@@ -437,6 +437,15 @@ mod tests {
         g.piece = Piece { cells: vec![(0, 0)], x: 0, y: H - 1, color: 3 };
         g.lock();
         assert!(g.cleared.is_empty());
+    }
+
+    #[test]
+    fn lock_shifts_the_two_upcoming_pieces() {
+        let mut g = Game::new();
+        let (next, after) = (g.next.cells.clone(), g.after.cells.clone());
+        g.piece = Piece { cells: vec![(0, 0)], x: 0, y: H - 1, color: 3 };
+        g.lock();
+        assert_eq!((g.piece.cells.clone(), g.next.cells.clone()), (next, after));
     }
 
     #[test]
