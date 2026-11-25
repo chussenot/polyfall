@@ -1,6 +1,13 @@
 # Polyfall
 
-![Polyfall: a piece falling into the well, with the two upcoming pieces shown in the side panel](docs/assets/screenshot.png)
+<table>
+<tr>
+<td width="300" valign="top">
+
+<img src="docs/assets/screenshot.png" width="280" alt="Polyfall: a piece falling into the well, with the two upcoming pieces shown in the side panel">
+
+</td>
+<td valign="top">
 
 ## Why
 
@@ -18,5 +25,9 @@ It exists for short breaks at a desk:
   leaving mid-game costs nothing.
 - **Small on purpose.** One window, one keyboard, one source file. A feature has to
   earn its place.
+
+</td>
+</tr>
+</table>
 
 How it works, how to run it and how to change it are in the [documentation](docs/index.md).
