@@ -48,9 +48,13 @@ struct Game {
     score: u32,
     lines: u32,
     fall: f32,
+    held: f32, // seconds Left/Right has been held, for key repeat
     over: bool,
     paused: bool,
 }
+
+const REPEAT_DELAY: f32 = 0.17;
+const REPEAT_RATE: f32 = 0.05;
 
 impl Game {
     fn new() -> Self {
@@ -61,6 +65,7 @@ impl Game {
             score: 0,
             lines: 0,
             fall: 0.0,
+            held: 0.0,
             over: false,
             paused: false,
         }
@@ -128,12 +133,29 @@ impl Game {
         self.lines / 10
     }
 
+    /// R must not wipe a game in progress.
+    fn can_restart(&self) -> bool {
+        self.over || self.paused
+    }
+
+    /// Repeat moves owed when a key's held time grows from `before` to `after`.
+    fn repeats(before: f32, after: f32) -> i32 {
+        let due = |t: f32| if t < REPEAT_DELAY { 0 } else { 1 + ((t - REPEAT_DELAY) / REPEAT_RATE) as i32 };
+        due(after) - due(before)
+    }
+
     fn update(&mut self) {
-        if is_key_pressed(KeyCode::Left) {
-            self.shift(-1, 0);
-        }
-        if is_key_pressed(KeyCode::Right) {
-            self.shift(1, 0);
+        let pressed = is_key_pressed(KeyCode::Right) as i32 - is_key_pressed(KeyCode::Left) as i32;
+        let down = is_key_down(KeyCode::Right) as i32 - is_key_down(KeyCode::Left) as i32;
+        if pressed != 0 {
+            self.held = 0.0;
+            self.shift(pressed, 0);
+        } else if down != 0 {
+            let held = self.held + get_frame_time();
+            for _ in 0..Self::repeats(self.held, held) {
+                self.shift(down, 0);
+            }
+            self.held = held;
         }
         if is_key_pressed(KeyCode::Up) {
             self.rotate();
@@ -230,8 +252,11 @@ async fn main() {
     rand::srand(macroquad::miniquad::date::now() as u64);
     let mut game = Game::new();
     loop {
-        if is_key_pressed(KeyCode::R) {
+        if is_key_pressed(KeyCode::R) && game.can_restart() {
             game = Game::new();
+        }
+        if is_key_pressed(KeyCode::P) && !game.over {
+            game.paused = !game.paused;
         }
         if !game.over && !game.paused {
             game.update();
@@ -324,5 +349,24 @@ mod tests {
         g.rotate();
         assert_eq!(g.piece.cells, vec![(0, 0), (0, -1), (0, 1)]);
         assert_eq!((g.piece.x, g.piece.y), (5, 1));
+    }
+
+    #[test]
+    fn restart_only_when_over_or_paused() {
+        let mut g = Game::new();
+        assert!(!g.can_restart());
+        g.paused = true;
+        assert!(g.can_restart());
+        g.paused = false;
+        g.over = true;
+        assert!(g.can_restart());
+    }
+
+    #[test]
+    fn held_key_repeats_after_a_delay() {
+        assert_eq!(Game::repeats(0.0, 0.16), 0);
+        assert_eq!(Game::repeats(0.16, 0.18), 1);
+        assert_eq!(Game::repeats(0.18, 0.20), 0);
+        assert_eq!(Game::repeats(0.0, 0.28), 3); // one long frame owes every step it skipped
     }
 }
