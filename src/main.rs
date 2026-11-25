@@ -6,6 +6,10 @@ const CELL: f32 = 30.0;
 const PANEL: f32 = 200.0;
 const VIEW_W: f32 = W as f32 * CELL + PANEL;
 const VIEW_H: f32 = H as f32 * CELL;
+const TEXT: Color = Color::new(0.90, 0.91, 0.94, 1.0);
+const DIM: Color = Color::new(0.50, 0.53, 0.62, 1.0);
+const FLASH: f32 = 0.25; // seconds the cleared-row band takes to fade
+const GLOW: f32 = 0.8; // seconds the level number stays highlighted
 const BG: Color = Color::new(0.07, 0.08, 0.11, 1.0);
 const WELL: Color = Color::new(0.12, 0.13, 0.18, 1.0);
 const COLORS: [Color; 6] = [
@@ -50,6 +54,9 @@ struct Game {
     fall: f32,
     over: bool,
     paused: bool,
+    cleared: Vec<usize>, // rows removed by the last lock, as they were before the collapse
+    flash: f32,          // time left on the cleared-row band
+    glow: f32,           // time left on the level highlight
 }
 
 impl Game {
@@ -63,6 +70,9 @@ impl Game {
             fall: 0.0,
             over: false,
             paused: false,
+            cleared: Vec::new(),
+            flash: 0.0,
+            glow: 0.0,
         }
     }
 
@@ -114,11 +124,19 @@ impl Game {
             self.grid[(self.piece.y + cy) as usize][(self.piece.x + cx) as usize] = self.piece.color;
         }
         let kept: Vec<_> = self.grid.iter().copied().filter(|row| row.contains(&0)).collect();
-        let cleared = H as usize - kept.len();
+        self.cleared = (0..H as usize).filter(|&y| !self.grid[y].contains(&0)).collect();
+        let cleared = self.cleared.len();
+        let level = self.level();
         self.grid = [[0; W as usize]; H as usize];
         self.grid[cleared..].copy_from_slice(&kept);
         self.lines += cleared as u32;
         self.score += (cleared * cleared) as u32 * 100;
+        if cleared > 0 {
+            self.flash = FLASH;
+        }
+        if self.level() > level {
+            self.glow = GLOW;
+        }
         self.fall = 0.0;
         self.piece = std::mem::replace(&mut self.next, random_piece());
         self.over = !self.fits(&self.piece.cells, self.piece.x, self.piece.y);
@@ -157,7 +175,10 @@ impl Game {
         }
     }
 
-    fn draw(&self) {
+    fn draw(&mut self) {
+        let dt = get_frame_time();
+        self.flash = (self.flash - dt).max(0.0);
+        self.glow = (self.glow - dt).max(0.0);
         // fixed logical view: miniquad shrinks the logical screen on scaled displays, which cropped the layout
         set_camera(&Camera2D::from_display_rect(Rect::new(0.0, VIEW_H, VIEW_W, -VIEW_H)));
         clear_background(BG);
@@ -185,27 +206,66 @@ impl Game {
     /// Everything right of the well: score, next piece, key list.
     fn draw_panel(&self) {
         let px = W as f32 * CELL + 20.0;
-        draw_text(&format!("Score {}", self.score), px, 40.0, 28.0, WHITE);
-        draw_text(&format!("Lines {}", self.lines), px, 70.0, 28.0, WHITE);
-        draw_text(&format!("Level {}", self.level() + 1), px, 100.0, 28.0, WHITE);
-        draw_text("Next", px, 150.0, 28.0, GRAY);
-        let left = self.next.cells.iter().map(|c| c.0).min().unwrap();
-        for &(cx, cy) in &self.next.cells {
-            draw_cell(px + (cx - left) as f32 * CELL, 170.0 + (self.next.y + cy) as f32 * CELL, self.next.color);
+        draw_text("SCORE", px, 34.0, 16.0, DIM);
+        draw_text(&self.score.to_string(), px, 74.0, 48.0, TEXT);
+        draw_text("LINES", px, 112.0, 16.0, DIM);
+        draw_text(&self.lines.to_string(), px, 140.0, 28.0, TEXT);
+        let level = (self.level() + 1).to_string();
+        draw_text("LEVEL", px + 80.0, 112.0, 16.0, DIM);
+        draw_text(&level, px + 80.0, 140.0, 28.0, TEXT);
+        draw_text(&level, px + 80.0, 140.0, 28.0, Color { a: self.glow / GLOW, ..COLORS[2] });
+
+        // a fixed 160 px slot; the piece (at most 5 cells = 150 px either way) is centred in it
+        let (by, side) = (192.0, 160.0);
+        draw_text("NEXT", px, by - 10.0, 16.0, DIM);
+        draw_rectangle(px, by, side, side, WELL);
+        draw_rectangle_lines(px, by, side, side, 2.0, DIM);
+        let n = &self.next;
+        let span = |f: fn(&(i32, i32)) -> i32| {
+            let (lo, hi) = (n.cells.iter().map(f).min().unwrap(), n.cells.iter().map(f).max().unwrap());
+            (side - (hi - lo + 1) as f32 * CELL) / 2.0 - lo as f32 * CELL
+        };
+        let (ox, oy) = (px + span(|c| c.0), by + span(|c| c.1));
+        for &(cx, cy) in &n.cells {
+            draw_cell(ox + cx as f32 * CELL, oy + cy as f32 * CELL, n.color);
         }
-        for (i, line) in ["Left/Right  move", "Up  rotate", "Down  soft drop", "Space  hard drop", "R  restart"]
-            .iter()
-            .enumerate()
-        {
-            draw_text(line, px, 400.0 + i as f32 * 24.0, 20.0, GRAY);
+
+        let keys = [
+            ("Left/Right", "move"),
+            ("Up", "rotate"),
+            ("Down", "soft drop"),
+            ("Space", "hard drop"),
+            ("P", "pause"),
+            ("R", "restart"),
+        ];
+        for (i, (key, action)) in keys.iter().enumerate() {
+            let y = 392.0 + i as f32 * 24.0;
+            draw_text(key, px, y, 18.0, TEXT);
+            draw_text(action, px + 88.0, y, 18.0, DIM);
         }
     }
 
-    /// Drawn last, over the well: game-over state.
+    /// Drawn last, over the well: the cleared-row band, then the paused / game-over panel.
     fn draw_overlay(&self) {
-        if self.over {
-            draw_text("GAME OVER", 60.0, H as f32 * CELL / 2.0, 56.0, WHITE);
-            draw_text("press R", 130.0, H as f32 * CELL / 2.0 + 40.0, 32.0, WHITE);
+        let well_w = W as f32 * CELL;
+        for &y in &self.cleared {
+            draw_rectangle(0.0, y as f32 * CELL, well_w, CELL, Color::new(1.0, 1.0, 1.0, 0.35 * self.flash / FLASH));
+        }
+        let lines = if self.over {
+            ["Game over".to_string(), format!("Score {}", self.score), "R  new game".to_string()]
+        } else if self.paused {
+            ["Paused".to_string(), "P  resume".to_string(), "R  new game".to_string()]
+        } else {
+            return;
+        };
+        draw_rectangle(0.0, 0.0, well_w, VIEW_H, Color { a: 0.7, ..BG });
+        let (w, h) = (260.0, 150.0);
+        let (x, y) = ((well_w - w) / 2.0, (VIEW_H - h) / 2.0);
+        draw_rectangle(x, y, w, h, BG);
+        draw_rectangle_lines(x, y, w, h, 2.0, DIM);
+        for (line, (dy, size, color)) in lines.iter().zip([(52.0, 40.0, TEXT), (92.0, 24.0, TEXT), (124.0, 20.0, DIM)]) {
+            let tw = measure_text(line, None, size as u16, 1.0).width;
+            draw_text(line, (well_w - tw) / 2.0, y + dy, size, color);
         }
     }
 }
@@ -281,6 +341,25 @@ mod tests {
         g.lock();
         assert_eq!(g.lines, 0);
         assert!(g.over);
+    }
+
+    #[test]
+    fn lock_records_cleared_rows_and_level_up() {
+        let mut g = Game::new();
+        let bottom = H as usize - 1;
+        for row in &mut g.grid[bottom - 1..] {
+            *row = [1; W as usize];
+            row[0] = 0;
+        }
+        g.lines = 9;
+        g.piece = Piece { cells: vec![(0, 0), (0, 1)], x: 0, y: H - 2, color: 3 };
+        g.lock();
+        assert_eq!(g.cleared, vec![bottom - 1, bottom]);
+        assert_eq!((g.lines, g.flash, g.glow), (11, FLASH, GLOW));
+
+        g.piece = Piece { cells: vec![(0, 0)], x: 0, y: H - 1, color: 3 };
+        g.lock();
+        assert!(g.cleared.is_empty());
     }
 
     #[test]
