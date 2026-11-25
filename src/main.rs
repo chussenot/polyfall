@@ -43,7 +43,12 @@ fn random_piece() -> Piece {
         }
     }
     let top = cells.iter().map(|c| c.1).min().unwrap();
-    Piece { cells, x: W / 2, y: -top, color: n as u8 - 2 }
+    Piece {
+        cells,
+        x: W / 2,
+        y: -top,
+        color: n as u8 - 2,
+    }
 }
 
 struct Game {
@@ -121,7 +126,9 @@ impl Game {
             let cells = || turned.iter().map(|&(cx, cy)| (px + cx + k, py + cy));
             cells().any(|(gx, _)| !(0..W).contains(&gx))
                 && cells().all(|(gx, gy)| {
-                    !(0..W).contains(&gx) || !(0..H).contains(&gy) || self.grid[gy as usize][gx as usize] == 0
+                    !(0..W).contains(&gx)
+                        || !(0..H).contains(&gy)
+                        || self.grid[gy as usize][gx as usize] == 0
                 })
         };
         // nudge sideways if the turned shape hits a wall or the stack, else down one row (spawn row)
@@ -142,10 +149,18 @@ impl Game {
 
     fn lock(&mut self) {
         for &(cx, cy) in &self.piece.cells {
-            self.grid[(self.piece.y + cy) as usize][(self.piece.x + cx) as usize] = self.piece.color;
+            self.grid[(self.piece.y + cy) as usize][(self.piece.x + cx) as usize] =
+                self.piece.color;
         }
-        let kept: Vec<_> = self.grid.iter().copied().filter(|row| row.contains(&0)).collect();
-        self.cleared = (0..H as usize).filter(|&y| !self.grid[y].contains(&0)).collect();
+        let kept: Vec<_> = self
+            .grid
+            .iter()
+            .copied()
+            .filter(|row| row.contains(&0))
+            .collect();
+        self.cleared = (0..H as usize)
+            .filter(|&y| !self.grid[y].contains(&0))
+            .collect();
         let cleared = self.cleared.len();
         let level = self.level();
         self.grid = [[0; W as usize]; H as usize];
@@ -159,7 +174,10 @@ impl Game {
             self.glow = GLOW;
         }
         self.fall = 0.0;
-        self.piece = std::mem::replace(&mut self.next, std::mem::replace(&mut self.after, random_piece()));
+        self.piece = std::mem::replace(
+            &mut self.next,
+            std::mem::replace(&mut self.after, random_piece()),
+        );
         self.over = !self.fits(&self.piece.cells, self.piece.x, self.piece.y);
     }
 
@@ -174,13 +192,23 @@ impl Game {
 
     /// Repeat moves owed when a key's held time grows from `before` to `after`.
     fn repeats(before: f32, after: f32) -> i32 {
-        let due = |t: f32| if t < REPEAT_DELAY { 0 } else { 1 + ((t - REPEAT_DELAY) / REPEAT_RATE) as i32 };
+        let due = |t: f32| {
+            if t < REPEAT_DELAY {
+                0
+            } else {
+                1 + ((t - REPEAT_DELAY) / REPEAT_RATE) as i32
+            }
+        };
         due(after) - due(before)
     }
 
     /// Pauses after `IDLE_PAUSE` seconds of play without a key; the count restarts once paused or over.
     fn tick_idle(&mut self, dt: f32, key_active: bool) {
-        self.idle = if key_active || self.over || self.paused { 0.0 } else { self.idle + dt };
+        self.idle = if key_active || self.over || self.paused {
+            0.0
+        } else {
+            self.idle + dt
+        };
         self.paused |= self.idle >= IDLE_PAUSE;
     }
 
@@ -224,7 +252,9 @@ impl Game {
         self.flash = (self.flash - dt).max(0.0);
         self.glow = (self.glow - dt).max(0.0);
         // fixed logical view: miniquad shrinks the logical screen on scaled displays, which cropped the layout
-        set_camera(&Camera2D::from_display_rect(Rect::new(0.0, VIEW_H, VIEW_W, -VIEW_H)));
+        set_camera(&Camera2D::from_display_rect(Rect::new(
+            0.0, VIEW_H, VIEW_W, -VIEW_H,
+        )));
         clear_background(BG);
         self.draw_well();
         self.draw_panel();
@@ -247,7 +277,10 @@ impl Game {
         let p = &self.piece;
         let land = self.landing_y();
         if land != p.y {
-            let outline = Color { a: LANDING_ALPHA, ..COLORS[p.color as usize - 1] };
+            let outline = Color {
+                a: LANDING_ALPHA,
+                ..COLORS[p.color as usize - 1]
+            };
             for &(cx, cy) in &p.cells {
                 let (x, y) = ((p.x + cx) as f32 * CELL, (land + cy) as f32 * CELL);
                 draw_rectangle_lines(x + 2.0, y + 2.0, CELL - 4.0, CELL - 4.0, 2.0, outline);
@@ -263,26 +296,44 @@ impl Game {
     fn draw_panel(&self) {
         let px = W as f32 * CELL + 20.0;
         draw_text("SCORE", px, 34.0, 16.0, DIM);
-        draw_text(&self.score.to_string(), px, 74.0, 48.0, TEXT);
+        draw_text(self.score.to_string(), px, 74.0, 48.0, TEXT);
         draw_text("LINES", px, 112.0, 16.0, DIM);
-        draw_text(&self.lines.to_string(), px, 140.0, 28.0, TEXT);
+        draw_text(self.lines.to_string(), px, 140.0, 28.0, TEXT);
         let level = (self.level() + 1).to_string();
         draw_text("LEVEL", px + 80.0, 112.0, 16.0, DIM);
         draw_text(&level, px + 80.0, 140.0, 28.0, TEXT);
-        draw_text(&level, px + 80.0, 140.0, 28.0, Color { a: (self.glow / GLOW_FADE).min(1.0), ..COLORS[1] });
+        draw_text(
+            &level,
+            px + 80.0,
+            140.0,
+            28.0,
+            Color {
+                a: (self.glow / GLOW_FADE).min(1.0),
+                ..COLORS[1]
+            },
+        );
 
         // a fixed square slot per upcoming piece; the piece (at most 5 cells either way) is centred in it
         let preview = |p: &Piece, by: f32, side: f32, cell: f32| {
             draw_rectangle(px, by, side, side, WELL);
             draw_rectangle_lines(px, by, side, side, 2.0, DIM);
             let span = |f: fn(&(i32, i32)) -> i32| {
-                let (lo, hi) = (p.cells.iter().map(f).min().unwrap(), p.cells.iter().map(f).max().unwrap());
+                let (lo, hi) = (
+                    p.cells.iter().map(f).min().unwrap(),
+                    p.cells.iter().map(f).max().unwrap(),
+                );
                 (side - (hi - lo + 1) as f32 * cell) / 2.0 - lo as f32 * cell
             };
             let (ox, oy) = (px + span(|c| c.0), by + span(|c| c.1));
             for &(cx, cy) in &p.cells {
                 let (x, y) = (ox + cx as f32 * cell, oy + cy as f32 * cell);
-                draw_rectangle(x + 1.0, y + 1.0, cell - 2.0, cell - 2.0, COLORS[p.color as usize - 1]);
+                draw_rectangle(
+                    x + 1.0,
+                    y + 1.0,
+                    cell - 2.0,
+                    cell - 2.0,
+                    COLORS[p.color as usize - 1],
+                );
             }
         };
         draw_text("NEXT", px, 182.0, 16.0, DIM);
@@ -290,7 +341,13 @@ impl Game {
         draw_text("THEN", px, 392.0, 14.0, DIM);
         preview(&self.after, 402.0, 80.0, CELL / 2.0);
 
-        let keys = [("Left/Right", "move"), ("Up", "rotate"), ("Down", "soft drop"), ("Space", "hard drop"), ("P", "pause")];
+        let keys = [
+            ("Left/Right", "move"),
+            ("Up", "rotate"),
+            ("Down", "soft drop"),
+            ("Space", "hard drop"),
+            ("P", "pause"),
+        ];
         for (i, (key, action)) in keys.iter().enumerate() {
             let y = 522.0 + i as f32 * 24.0;
             draw_text(key, px, y, 18.0, TEXT);
@@ -302,12 +359,26 @@ impl Game {
     fn draw_overlay(&self) {
         let well_w = W as f32 * CELL;
         for &y in &self.cleared {
-            draw_rectangle(0.0, y as f32 * CELL, well_w, CELL, Color::new(1.0, 1.0, 1.0, 0.35 * self.flash / FLASH));
+            draw_rectangle(
+                0.0,
+                y as f32 * CELL,
+                well_w,
+                CELL,
+                Color::new(1.0, 1.0, 1.0, 0.35 * self.flash / FLASH),
+            );
         }
         let lines = if self.over {
-            ["Game over".to_string(), format!("Score {}", self.score), "R  new game".to_string()]
+            [
+                "Game over".to_string(),
+                format!("Score {}", self.score),
+                "R  new game".to_string(),
+            ]
         } else if self.paused {
-            ["Paused".to_string(), "P  resume".to_string(), "R  new game".to_string()]
+            [
+                "Paused".to_string(),
+                "P  resume".to_string(),
+                "R  new game".to_string(),
+            ]
         } else {
             return;
         };
@@ -316,7 +387,11 @@ impl Game {
         let (x, y) = ((well_w - w) / 2.0, (VIEW_H - h) / 2.0);
         draw_rectangle(x, y, w, h, BG);
         draw_rectangle_lines(x, y, w, h, 2.0, DIM);
-        for (line, (dy, size, color)) in lines.iter().zip([(52.0, 40.0, TEXT), (92.0, 24.0, TEXT), (124.0, 20.0, DIM)]) {
+        for (line, (dy, size, color)) in
+            lines
+                .iter()
+                .zip([(52.0, 40.0, TEXT), (92.0, 24.0, TEXT), (124.0, 20.0, DIM)])
+        {
             let tw = measure_text(line, None, size as u16, 1.0).width;
             draw_text(line, (well_w - tw) / 2.0, y + dy, size, color);
         }
@@ -324,7 +399,13 @@ impl Game {
 }
 
 fn draw_cell(x: f32, y: f32, color: u8) {
-    draw_rectangle(x + 1.0, y + 1.0, CELL - 2.0, CELL - 2.0, COLORS[color as usize - 1]);
+    draw_rectangle(
+        x + 1.0,
+        y + 1.0,
+        CELL - 2.0,
+        CELL - 2.0,
+        COLORS[color as usize - 1],
+    );
 }
 
 fn conf() -> Conf {
@@ -376,7 +457,12 @@ mod tests {
     fn landing_row_stops_on_the_stack_or_the_floor() {
         let mut g = Game::new();
         g.grid[15][6] = 1;
-        g.piece = Piece { cells: vec![(0, 0), (1, 0), (0, 1)], x: 5, y: 2, color: 1 };
+        g.piece = Piece {
+            cells: vec![(0, 0), (1, 0), (0, 1)],
+            x: 5,
+            y: 2,
+            color: 1,
+        };
         assert_eq!(g.landing_y(), 14); // the (1, 0) cell rests on the block at row 15
         g.piece.x = 2;
         assert_eq!(g.landing_y(), H - 2);
@@ -399,7 +485,12 @@ mod tests {
         g.grid[bottom] = [1; W as usize];
         g.grid[bottom][0] = 0;
         g.grid[bottom - 1][5] = 2;
-        g.piece = Piece { cells: vec![(0, 0)], x: 0, y: H - 1, color: 3 };
+        g.piece = Piece {
+            cells: vec![(0, 0)],
+            x: 0,
+            y: H - 1,
+            color: 3,
+        };
         g.lock();
         assert_eq!((g.lines, g.score), (1, 100));
         assert_eq!(g.grid[bottom][5], 2);
@@ -414,7 +505,12 @@ mod tests {
             *row = [1; W as usize];
             row[0] = 0; // gap so the row is not cleared; spawns never reach column 0
         }
-        g.piece = Piece { cells: vec![(0, 0)], x: 0, y: H - 1, color: 3 };
+        g.piece = Piece {
+            cells: vec![(0, 0)],
+            x: 0,
+            y: H - 1,
+            color: 3,
+        };
         g.lock();
         assert_eq!(g.lines, 0);
         assert!(g.over);
@@ -429,12 +525,22 @@ mod tests {
             row[0] = 0;
         }
         g.lines = 9;
-        g.piece = Piece { cells: vec![(0, 0), (0, 1)], x: 0, y: H - 2, color: 3 };
+        g.piece = Piece {
+            cells: vec![(0, 0), (0, 1)],
+            x: 0,
+            y: H - 2,
+            color: 3,
+        };
         g.lock();
         assert_eq!(g.cleared, vec![bottom - 1, bottom]);
         assert_eq!((g.lines, g.flash, g.glow), (11, FLASH, GLOW));
 
-        g.piece = Piece { cells: vec![(0, 0)], x: 0, y: H - 1, color: 3 };
+        g.piece = Piece {
+            cells: vec![(0, 0)],
+            x: 0,
+            y: H - 1,
+            color: 3,
+        };
         g.lock();
         assert!(g.cleared.is_empty());
     }
@@ -443,7 +549,12 @@ mod tests {
     fn lock_shifts_the_two_upcoming_pieces() {
         let mut g = Game::new();
         let (next, after) = (g.next.cells.clone(), g.after.cells.clone());
-        g.piece = Piece { cells: vec![(0, 0)], x: 0, y: H - 1, color: 3 };
+        g.piece = Piece {
+            cells: vec![(0, 0)],
+            x: 0,
+            y: H - 1,
+            color: 3,
+        };
         g.lock();
         assert_eq!((g.piece.cells.clone(), g.next.cells.clone()), (next, after));
     }
@@ -452,7 +563,12 @@ mod tests {
     fn four_turns_restore_the_piece() {
         let mut g = Game::new();
         let cells = vec![(0, 0), (1, 0), (0, 1), (0, 2)];
-        g.piece = Piece { cells: cells.clone(), x: 5, y: 10, color: 1 };
+        g.piece = Piece {
+            cells: cells.clone(),
+            x: 5,
+            y: 10,
+            color: 1,
+        };
         g.rotate();
         assert_ne!(g.piece.cells, cells);
         for _ in 0..3 {
@@ -465,18 +581,28 @@ mod tests {
     fn rotation_kicks_off_walls_but_not_over_the_stack() {
         // in a one-cell shaft between two one-cell columns: turning would need a hop over a column
         let mut g = Game::new();
-        for y in 9..=12 {
-            g.grid[y][4] = 1;
-            g.grid[y][6] = 1;
+        for row in &mut g.grid[9..=12] {
+            row[4] = 1;
+            row[6] = 1;
         }
         let cells = vec![(0, 0), (0, 1)];
-        g.piece = Piece { cells: cells.clone(), x: 5, y: 10, color: 1 };
+        g.piece = Piece {
+            cells: cells.clone(),
+            x: 5,
+            y: 10,
+            color: 1,
+        };
         g.rotate();
         assert_eq!((&g.piece.cells, g.piece.x, g.piece.y), (&cells, 5, 10));
 
         // a long bar against the left wall still turns, two cells away from it
         let mut g = Game::new();
-        g.piece = Piece { cells: vec![(0, -1), (0, 0), (0, 1), (0, 2)], x: 0, y: 10, color: 1 };
+        g.piece = Piece {
+            cells: vec![(0, -1), (0, 0), (0, 1), (0, 2)],
+            x: 0,
+            y: 10,
+            color: 1,
+        };
         g.rotate();
         assert_eq!(g.piece.cells, vec![(1, 0), (0, 0), (-1, 0), (-2, 0)]);
         assert_eq!((g.piece.x, g.piece.y), (2, 10));
@@ -485,7 +611,12 @@ mod tests {
     #[test]
     fn top_row_piece_can_still_turn() {
         let mut g = Game::new();
-        g.piece = Piece { cells: vec![(0, 0), (-1, 0), (1, 0)], x: 5, y: 0, color: 1 };
+        g.piece = Piece {
+            cells: vec![(0, 0), (-1, 0), (1, 0)],
+            x: 5,
+            y: 0,
+            color: 1,
+        };
         g.rotate();
         assert_eq!(g.piece.cells, vec![(0, 0), (0, -1), (0, 1)]);
         assert_eq!((g.piece.x, g.piece.y), (5, 1));
