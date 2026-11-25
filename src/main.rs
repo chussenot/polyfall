@@ -285,7 +285,7 @@ impl Game {
         for (i, (key, action)) in keys.iter().enumerate() {
             let y = 392.0 + i as f32 * 24.0;
             draw_text(key, px, y, 18.0, TEXT);
-            draw_text(action, px + 88.0, y, 18.0, DIM);
+            draw_text(action, px + 96.0, y, 18.0, DIM);
         }
     }
 
