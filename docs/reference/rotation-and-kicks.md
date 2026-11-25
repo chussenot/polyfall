@@ -1,6 +1,6 @@
 ---
 title: Rotation and kicks
-description: The rotation formula, the six kick offsets tried in order, the wall-only rule for two-column kicks, and the documented limit.
+description: How a piece turns, the six positions tried in order when the turned piece does not fit, and the cases in which a turn is refused.
 source:
   - Game::rotate
   - Game::fits
@@ -9,8 +9,17 @@ source:
 
 # Rotation and kicks
 
-All rotation logic is in `Game::rotate`. It is called from `Game::update` when
-Up is pressed.
+This page explains what happens when the player presses Up. Read it when a
+rotation surprises you, or before you change `Game::rotate`, which holds all of
+this logic.
+
+## The idea
+
+A rotation has two parts. First the piece is turned a quarter turn. Then the
+game looks for a place where the turned piece fits: its current position first,
+then a few positions next to it. Such a shift is a kick. It lets a piece turn
+when it touches a wall or the stack. If no position fits, the piece stays as it
+was.
 
 ## The turn
 
@@ -20,84 +29,70 @@ Each cell offset `(x, y)` of the piece becomes `(-y, x)`:
 let turned: Vec<_> = self.piece.cells.iter().map(|&(x, y)| (-y, x)).collect();
 ```
 
-Rows grow downward on screen, so this is a quarter turn clockwise as seen by
-the player: the offset `(1, 0)` (right of the pivot) becomes `(0, 1)` (below
-it).
+Rows are numbered downward, so the player sees a quarter turn clockwise: the
+cell right of the centre, `(1, 0)`, goes below it, `(0, 1)`.
 
-- The pivot is the cell `(0, 0)`, which every piece contains. It is the first
-  cell created by `random_piece`, not the centre of the shape.
-- There is one direction of rotation. No key rotates the other way.
-- Four turns with no kick restore the cell list and the position
-  (`four_turns_restore_the_piece`).
+- The piece turns around its cell `(0, 0)`. That is the first cell
+  `random_piece` created, not the middle of the shape.
+- There is one direction of rotation. No key turns the other way.
+- Four turns in open space bring the piece back to the same cells at the same
+  position.
 
-## Kicks
+## The kicks
 
-The turned shape is tested with `Game::fits` at the piece position plus each of
-these offsets, in this order. The first one that fits is applied: the piece
-position moves by the offset and the cells are replaced by the turned ones. If
-none fits, the piece is left unchanged.
+`rotate` tests the turned piece with `Game::fits` at the piece position plus
+each offset below, in this order. It applies the first one that fits: the piece
+moves by the offset and takes the turned cells.
 
-| Order | `(dx, dy)` | Meaning | Condition |
+| Order | Offset `(dx, dy)` | Meaning | Tried when |
 | --- | --- | --- | --- |
-| 1 | `(0, 0)` | In place | none |
-| 2 | `(-1, 0)` | One column left | none |
-| 3 | `(1, 0)` | One column right | none |
-| 4 | `(-2, 0)` | Two columns left | `wall_only(-1)` |
-| 5 | `(2, 0)` | Two columns right | `wall_only(1)` |
-| 6 | `(0, 1)` | One row down | none |
+| 1 | `(0, 0)` | In place | Always |
+| 2 | `(-1, 0)` | One column left | Always |
+| 3 | `(1, 0)` | One column right | Always |
+| 4 | `(-2, 0)` | Two columns left | Only if `wall_only(-1)` is true |
+| 5 | `(2, 0)` | Two columns right | Only if `wall_only(1)` is true |
+| 6 | `(0, 1)` | One row down | Always |
 
-```mermaid
-flowchart TB
-    T[Turn the cells]
-    A{Fits in place?}
-    B{Fits 1 column<br/>left or right?}
-    C{Fits 2 columns away,<br/>wall only?}
-    D{Fits 1 row down?}
-    OK[Apply turn and offset]
-    NO[Piece unchanged]
-    T --> A
-    A -->|yes| OK
-    A -->|no| B
-    B -->|yes| OK
-    B -->|no| C
-    C -->|yes| OK
-    C -->|no| D
-    D -->|yes| OK
-    D -->|no| NO
-```
+Kick 6 exists for a piece at the top of the well: its turned shape may reach
+above row 0, and one row down makes room.
 
-### The wall-only rule
+### When a two-column kick is allowed
 
-A two-column kick is skipped unless `wall_only(dx / 2)` is true. The closure
-looks at the turned shape moved by one column in the same direction (`k` is
-`-1` or `1`) and returns true when both of these hold:
+A two-column kick may only move a piece away from a side wall. It must never
+carry a piece over locked cells.
 
-- at least one cell has a column outside `0..W`;
-- every cell is either outside the columns `0..W`, or outside the rows `0..H`,
-  or on an empty grid cell.
+Before it tries kick 4 or 5, `rotate` calls the closure `wall_only` with the
+direction of the kick: `-1` for left, `1` for right. `wall_only` looks at the
+turned piece moved one column in that direction, which is the position kick 2
+or kick 3 tried. It is true when both of these hold there:
 
-In the words of the code comments: the one-column kick "was stopped by the side
-wall alone", and two cells are allowed "only to clear a wall, never to hop over
-stack blocks".
+- at least one cell is outside the columns `0..W`;
+- no cell is on a locked cell.
 
-The condition only decides whether the two-column position is tried. That
-position must still pass `fits`.
+In other words, the side wall alone stopped the one-column kick. Only then is
+the two-column position tested, and it must still pass `fits`.
 
-### Examples from the tests
+### Three examples
 
-| Test | Start | Result |
+All three come from the tests. A position is written `(x, y)`.
+
+| Start | Result | Why |
 | --- | --- | --- |
-| `rotation_kicks_off_walls_but_not_over_the_stack` (first part) | Cells `(0,0),(0,1)` at `(5, 10)`, locked blocks in columns 4 and 6 on rows 9 to 12 | No rotation: the one-column kicks hit blocks and the two-column kicks are refused by the wall-only rule. |
-| same test (second part) | Cells `(0,-1),(0,0),(0,1),(0,2)` at `(0, 10)`, against the left wall | Rotates to `(1,0),(0,0),(-1,0),(-2,0)` and moves to `(2, 10)`: kick 5. |
-| `top_row_piece_can_still_turn` | Cells `(0,0),(-1,0),(1,0)` at `(5, 0)` | Rotates to `(0,0),(0,-1),(0,1)` and moves to `(5, 1)`: kick 6. |
+| Cells `(0,0)`, `(0,1)` at `(5, 10)`, with locked cells in columns 4 and 6 on rows 9 to 12 | No rotation | Kicks 1 to 3 hit locked cells. Kicks 4 and 5 are not allowed, because no wall is involved. Kick 6 hits a locked cell. |
+| Cells `(0,-1)`, `(0,0)`, `(0,1)`, `(0,2)` at `(0, 10)`, against the left wall | Cells `(1,0)`, `(0,0)`, `(-1,0)`, `(-2,0)` at `(2, 10)` | Kicks 1 to 4 leave a cell outside the left wall. Kick 5 is allowed, because only the wall stopped kick 3, and it fits. |
+| Cells `(0,0)`, `(-1,0)`, `(1,0)` at `(5, 0)`, on the top row | Cells `(0,0)`, `(0,-1)`, `(0,1)` at `(5, 1)` | The turned piece reaches above row 0. Kick 6 fits. |
 
-## Limits
+The tests are `rotation_kicks_off_walls_but_not_over_the_stack` (first two rows)
+and `top_row_piece_can_still_turn`.
 
-- The code carries this note: `shortcut: a single row down, so a shape poking
-  2+ rows above row 0 still refuses; add more rows if that matters`. A turned
-  shape that would reach two or more rows above row 0 is not rotated, because
-  only one downward row is tried.
-- No kick moves the piece up. A turned shape that would go below row 21 or into
-  the stack below is rotated only if a sideways kick makes it fit.
-- The downward kick is tried last and is not combined with a sideways kick.
-- A refused rotation gives no feedback: nothing is drawn or recorded.
+## When a turn is refused
+
+- **Two rows above the well.** Only one row down is tried. A turned piece that
+  would reach two or more rows above row 0 does not turn. The code marks this
+  as a known shortcut: `shortcut: a single row down, so a shape poking 2+ rows
+  above row 0 still refuses; add more rows if that matters`.
+- **No kick moves the piece up.** A turned piece that would go below the floor
+  or into the stack beneath it turns only if a sideways kick fits.
+- **Kicks are not combined.** The row down is tried last and never together
+  with a sideways kick.
+- **No feedback.** A refused turn draws nothing and records nothing.
