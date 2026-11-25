@@ -4,6 +4,8 @@ const W: i32 = 12;
 const H: i32 = 22;
 const CELL: f32 = 30.0;
 const PANEL: f32 = 200.0;
+const VIEW_W: f32 = W as f32 * CELL + PANEL;
+const VIEW_H: f32 = H as f32 * CELL;
 const BG: Color = Color::new(0.07, 0.08, 0.11, 1.0);
 const WELL: Color = Color::new(0.12, 0.13, 0.18, 1.0);
 const COLORS: [Color; 6] = [
@@ -154,7 +156,16 @@ impl Game {
     }
 
     fn draw(&self) {
+        // fixed logical view: miniquad shrinks the logical screen on scaled displays, which cropped the layout
+        set_camera(&Camera2D::from_display_rect(Rect::new(0.0, VIEW_H, VIEW_W, -VIEW_H)));
         clear_background(BG);
+        self.draw_well();
+        self.draw_panel();
+        self.draw_overlay();
+    }
+
+    /// The well, the locked blocks and the falling piece.
+    fn draw_well(&self) {
         draw_rectangle(0.0, 0.0, W as f32 * CELL, H as f32 * CELL, WELL);
         for (y, row) in self.grid.iter().enumerate() {
             for (x, &c) in row.iter().enumerate() {
@@ -167,7 +178,10 @@ impl Game {
         for &(cx, cy) in &p.cells {
             draw_cell((p.x + cx) as f32 * CELL, (p.y + cy) as f32 * CELL, p.color);
         }
+    }
 
+    /// Everything right of the well: score, next piece, key list.
+    fn draw_panel(&self) {
         let px = W as f32 * CELL + 20.0;
         draw_text(&format!("Score {}", self.score), px, 40.0, 28.0, WHITE);
         draw_text(&format!("Lines {}", self.lines), px, 70.0, 28.0, WHITE);
@@ -175,7 +189,7 @@ impl Game {
         draw_text("Next", px, 150.0, 28.0, GRAY);
         let left = self.next.cells.iter().map(|c| c.0).min().unwrap();
         for &(cx, cy) in &self.next.cells {
-            draw_cell(px + (cx - left) as f32 * CELL,170.0 + (self.next.y + cy) as f32 * CELL, self.next.color);
+            draw_cell(px + (cx - left) as f32 * CELL, 170.0 + (self.next.y + cy) as f32 * CELL, self.next.color);
         }
         for (i, line) in ["Left/Right  move", "Up  rotate", "Down  soft drop", "Space  hard drop", "R  restart"]
             .iter()
@@ -183,6 +197,10 @@ impl Game {
         {
             draw_text(line, px, 400.0 + i as f32 * 24.0, 20.0, GRAY);
         }
+    }
+
+    /// Drawn last, over the well: game-over state.
+    fn draw_overlay(&self) {
         if self.over {
             draw_text("GAME OVER", 60.0, H as f32 * CELL / 2.0, 56.0, WHITE);
             draw_text("press R", 130.0, H as f32 * CELL / 2.0 + 40.0, 32.0, WHITE);
@@ -197,9 +215,10 @@ fn draw_cell(x: f32, y: f32, color: u8) {
 fn conf() -> Conf {
     Conf {
         window_title: "Polyfall".into(),
-        window_width: (W as f32 * CELL + PANEL) as i32,
-        window_height: (H as f32 * CELL) as i32,
+        window_width: VIEW_W as i32,
+        window_height: VIEW_H as i32,
         window_resizable: false,
+        high_dpi: true,
         ..Default::default()
     }
 }
