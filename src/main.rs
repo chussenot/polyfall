@@ -8,14 +8,14 @@ const VIEW_W: f32 = W as f32 * CELL + PANEL;
 const VIEW_H: f32 = H as f32 * CELL;
 const BG: Color = Color::new(0.07, 0.08, 0.11, 1.0);
 const WELL: Color = Color::new(0.12, 0.13, 0.18, 1.0);
-const COLORS: [Color; 6] = [
-    Color::new(0.95, 0.55, 0.35, 1.0),
-    Color::new(0.45, 0.80, 0.70, 1.0),
-    Color::new(0.90, 0.80, 0.40, 1.0),
-    Color::new(0.60, 0.55, 0.90, 1.0),
-    Color::new(0.90, 0.45, 0.60, 1.0),
-    Color::new(0.50, 0.75, 0.95, 1.0),
+// one colour per cell count (3, 4, 5): blue / orange / pale sand, rising in lightness so they also read without hue
+const COLORS: [Color; 3] = [
+    Color::new(0.36, 0.52, 0.85, 1.0),
+    Color::new(0.88, 0.58, 0.36, 1.0),
+    Color::new(0.92, 0.88, 0.70, 1.0),
 ];
+const GUIDE: Color = Color::new(1.0, 1.0, 1.0, 0.025); // tint on every other column
+const LANDING_ALPHA: f32 = 0.5;
 
 type Grid = [[u8; W as usize]; H as usize];
 
@@ -38,7 +38,7 @@ fn random_piece() -> Piece {
         }
     }
     let top = cells.iter().map(|c| c.1).min().unwrap();
-    Piece { cells, x: W / 2, y: -top, color: rand::gen_range(1, COLORS.len() as i32 + 1) as u8 }
+    Piece { cells, x: W / 2, y: -top, color: n as u8 - 2 }
 }
 
 struct Game {
@@ -80,6 +80,16 @@ impl Game {
             self.piece.y += dy;
         }
         ok
+    }
+
+    /// Row the falling piece would rest on if hard-dropped.
+    fn landing_y(&self) -> i32 {
+        let p = &self.piece;
+        let mut y = p.y;
+        while self.fits(&p.cells, p.x, y + 1) {
+            y += 1;
+        }
+        y
     }
 
     fn rotate(&mut self) {
@@ -169,6 +179,9 @@ impl Game {
     /// The well, the locked blocks and the falling piece.
     fn draw_well(&self) {
         draw_rectangle(0.0, 0.0, W as f32 * CELL, H as f32 * CELL, WELL);
+        for x in (1..W).step_by(2) {
+            draw_rectangle(x as f32 * CELL, 0.0, CELL, H as f32 * CELL, GUIDE);
+        }
         for (y, row) in self.grid.iter().enumerate() {
             for (x, &c) in row.iter().enumerate() {
                 if c != 0 {
@@ -177,6 +190,15 @@ impl Game {
             }
         }
         let p = &self.piece;
+        let land = self.landing_y();
+        if land != p.y {
+            let outline = Color { a: LANDING_ALPHA, ..COLORS[p.color as usize - 1] };
+            for &(cx, cy) in &p.cells {
+                let (x, y) = ((p.x + cx) as f32 * CELL, (land + cy) as f32 * CELL);
+                draw_rectangle_lines(x + 2.0, y + 2.0, CELL - 4.0, CELL - 4.0, 2.0, outline);
+            }
+        }
+        // drawn after the outline, so the real piece covers it where they overlap
         for &(cx, cy) in &p.cells {
             draw_cell((p.x + cx) as f32 * CELL, (p.y + cy) as f32 * CELL, p.color);
         }
@@ -252,6 +274,26 @@ mod tests {
             let p = random_piece();
             assert!((3..=5).contains(&p.cells.len()));
             assert!(g.fits(&p.cells, p.x, p.y));
+        }
+    }
+
+    #[test]
+    fn landing_row_stops_on_the_stack_or_the_floor() {
+        let mut g = Game::new();
+        g.grid[15][6] = 1;
+        g.piece = Piece { cells: vec![(0, 0), (1, 0), (0, 1)], x: 5, y: 2, color: 1 };
+        assert_eq!(g.landing_y(), 14); // the (1, 0) cell rests on the block at row 15
+        g.piece.x = 2;
+        assert_eq!(g.landing_y(), H - 2);
+        g.piece.y = H - 2;
+        assert_eq!(g.landing_y(), g.piece.y);
+    }
+
+    #[test]
+    fn colour_follows_cell_count() {
+        for _ in 0..1000 {
+            let p = random_piece();
+            assert_eq!(p.color as usize, p.cells.len() - 2);
         }
     }
 
