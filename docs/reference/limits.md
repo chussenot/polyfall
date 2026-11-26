@@ -45,14 +45,13 @@ also lists the other limits of rotation.
 | --- | --- |
 | Fall speed depends on the frame rate. At each downward step `fall` returns to `0.0` instead of keeping the time left over, and the piece moves at most one row per frame. The real time between two steps is the fall interval rounded up to a whole number of frames. The effect is largest for the short intervals, `0.04` s and `0.08` s. | `Game::update` |
 | There is no lock delay beyond the fall interval. With Down held, a piece resting on the stack locks after at most `0.04` s plus one frame. | `Game::update` |
-| The display timers `flash` and `glow` run during a pause and after the game is over, because `draw` counts them down. `draw` therefore changes the `Game` value. | `Game::draw` |
 
 ## Display
 
 | Behaviour | Cause |
 | --- | --- |
-| The band over removed rows is drawn at the row indices from before the rows above moved down, so it covers rows that now hold other cells. | `Game::lock`, `Game::draw_overlay` |
-| `cleared` is not emptied when `flash` reaches zero. The band is still drawn, at alpha 0, until the next lock. | `Game::draw_overlay` |
+| For up to about `0.4` s after rows are removed, the stack is drawn higher than it is while the rows come down. Collision and the landing outline use the real well. More limits of the effects are on [Effects](effects.md#limits). | `Fx::block` |
+| `Game::events` is emptied only by `main`. Code that drives a `Game` without that loop, as the tests do, lets it grow. | `main` |
 
 ## Other
 

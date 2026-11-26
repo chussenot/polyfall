@@ -122,18 +122,18 @@ Three details:
 `Game::lock` does all of this, in this order:
 
 1. Writes `piece.color` into the well at each cell of the piece.
-2. Records in `cleared` the index of every row that has no empty cell.
+2. Notes the index of every row that has no empty cell.
 3. Removes those rows. The rows above them move down by the same number of
    rows, and the same number of empty rows appear at the top.
 4. Adds the number of removed rows to `lines`.
 5. Adds the points to `score`. See [Scoring](#scoring).
-6. Sets `flash` to `FLASH` if at least one row was removed, and `glow` to
-   `GLOW` if the level rose. These two timers drive display effects described
-   on [Rendering and layout](rendering-and-layout.md#display-timers).
+6. Pushes the event `Locked`, and `LevelUp` if the level rose. Events are
+   reports for the display; no rule reads them. See [Effects](effects.md).
 7. Sets `fall` to `0.0`.
 8. Moves `next` into `piece` and `after` into `next`, and puts a new
    `random_piece()` in `after`.
-9. Sets `over` to true if the new `piece` does not fit at its position.
+9. Sets `over` to true if the new `piece` does not fit at its position, and
+   then pushes the event `GameOver`.
 
 Rows move as whole rows. A locked cell never falls on its own into a gap below
 it.

@@ -5,6 +5,7 @@ source:
   - Cargo.toml
   - Cargo.lock
   - main
+  - src/fx.rs
   - conf
 ---
 
@@ -15,7 +16,7 @@ which work the game code does itself and which it leaves to macroquad.
 
 There is one unit to build and run: the `polyfall` binary (package `polyfall`,
 version `0.1.0`, Rust edition 2021). Cargo links two things into it: the game
-code from `src/main.rs` and the macroquad library.
+code from `src/main.rs` and `src/fx.rs`, and the macroquad library.
 
 The diagram shows that the game code never talks to the operating system
 directly: every call goes through macroquad.
@@ -23,7 +24,7 @@ directly: every call goes through macroquad.
 ```mermaid
 flowchart LR
     subgraph Binary["polyfall binary"]
-        Code["Game code: src/main.rs"]
+        Code["Game code: src/main.rs, src/fx.rs"]
         MQ["macroquad 0.4"]
     end
     OS["Window, keyboard, clock"]
@@ -33,8 +34,10 @@ flowchart LR
 
 ## The game code
 
-One file, `src/main.rs`. It holds the constants, the `Piece` and `Game` types,
-the free functions `random_piece`, `draw_cell`, `conf` and `main`, and the
+Two files. `src/fx.rs` holds the visual effects: the `Fx` type and its tests.
+See [Effects](../reference/effects.md). `src/main.rs` holds the rest: the
+constants, the `Piece`, `Game` and `Event` types,
+the free functions `random_piece`, `draw_piece`, `conf` and `main`, and the
 `tests` module. [Components](components.md) describes its parts.
 
 ## macroquad
@@ -48,7 +51,7 @@ macroquad is the only direct dependency. The game imports it with
 | Keyboard | `is_key_pressed`, `is_key_down`, `get_keys_down`, `KeyCode` |
 | Time | `get_frame_time`, `macroquad::miniquad::date::now` |
 | Random numbers | `rand::srand`, `rand::gen_range` |
-| Drawing | `set_camera`, `Camera2D::from_display_rect`, `Rect`, `Color`, `clear_background`, `draw_rectangle`, `draw_rectangle_lines`, `draw_text`, `measure_text` |
+| Drawing | `set_camera`, `Camera2D::from_display_rect`, `Rect`, `Color`, `clear_background`, `draw_rectangle`, `draw_rectangle_ex`, `draw_rectangle_lines`, `draw_text`, `measure_text` |
 
 macroquad is built without its default features, which removes audio.
 [Development](../development.md#audio-is-disabled) gives the reason.

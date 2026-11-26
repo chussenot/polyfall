@@ -42,7 +42,7 @@ adapting to it. Random pieces are the identity of the game, not a side feature.
 - Pause on P, automatic pause after 8 seconds without a key press, key repeat for
   held Left/Right.
 - No sound or saved high scores today.
-- Single source file (`src/main.rs`), macroquad 0.4 with audio disabled so it builds
+- Two source files: the game in `src/main.rs`, its visual effects in `src/fx.rs`. macroquad 0.4 with audio disabled so it builds
   without ALSA headers.
 - It is an original game in the falling-block genre. It must not copy the name,
   piece set, look or music of any existing game.
@@ -53,7 +53,7 @@ adapting to it. Random pieces are the identity of the game, not a side feature.
 
 ## Evidence on Hand
 
-- The running game and its unit tests in `src/main.rs`; reverse documentation in `docs/`.
+- The running game and its unit tests in `src/`; reverse documentation in `docs/`.
 - One screenshot at `docs/assets/screenshot.png`.
 - No logo, art, sound or player feedback exist; none should be invented.
 

@@ -13,7 +13,6 @@ source:
   - COLORS
   - GUIDE
   - LANDING_ALPHA
-  - FLASH
   - GLOW
   - GLOW_FADE
   - conf
@@ -22,7 +21,7 @@ source:
   - Game::draw_panel
   - Game::draw_overlay
   - Game::landing_y
-  - draw_cell
+  - draw_piece
 ---
 
 # Rendering and layout
@@ -37,6 +36,9 @@ panel on the right, 200 units wide. Each frame is drawn from nothing, back to
 front: background, well, side panel, then overlays on top of the well.
 Everything is a rectangle or a line of text. There are no images and no custom
 fonts.
+
+This page gives the resting picture: what is on screen when nothing is moving.
+[Effects](effects.md) describes what is added for a short time after an event.
 
 ## The fixed view
 
@@ -65,15 +67,17 @@ the logical screen on scaled displays, which cropped the layout".
 
 ## Order of a frame
 
-`Game::draw` runs once per frame, in every game state:
+`Game::draw` runs once per frame, in every game state. It reads the `Game` and
+the `Fx` values and changes neither.
 
-1. Count down the two [display timers](#display-timers).
-2. Set the camera.
-3. Fill the window with `BG`.
-4. `draw_well`: the well, the stack and the falling piece.
+1. Fill the window with `BG`.
+2. Set the camera, moved down by `Fx::kick_px()`: an impact knocks the well a
+   few units down. At rest this is `0`.
+3. `draw_well`: the well, the stack and the falling piece.
+4. Set the camera again, not moved. The side panel and the overlays never
+   shake.
 5. `draw_panel`: the side panel.
-6. `draw_overlay`: the band over removed rows, then the pause or game-over
-   overlay.
+6. `draw_overlay`: the pause or game-over overlay.
 
 ## The well
 
@@ -81,12 +85,23 @@ the logical screen on scaled displays, which cropped the layout".
 
 1. A `WELL` rectangle over the whole well.
 2. A `GUIDE` tint over every second column: columns 1, 3, 5, 7, 9 and 11.
-3. Every locked cell.
-4. The landing outline.
-5. The falling piece.
+3. `Fx::draw_under`: light on the floor of the well, under the blocks.
+4. Every locked cell.
+5. `Fx::draw_clear`: rows that were just removed, while they break up.
+6. The landing outline.
+7. The falling piece.
+8. `Fx::draw_over`: contact lines, the hard-drop ring and fragments.
 
-`draw_cell` draws one cell as a filled square of 28 units (`CELL - 2`), inset by
-1 unit on each side. Two neighbouring cells are therefore 2 units apart.
+A cell is a filled square of 28 units (`CELL - 2`), inset by 1 unit on each
+side. Two neighbouring cells are therefore 2 units apart.
+
+`Fx::block(x, y)` returns the rectangle of each locked cell. At rest it is the
+square above. For a short time after a lock it is compressed, and after a row
+is removed it is higher than its real place.
+
+`draw_piece` draws the falling piece. `Fx::piece_pose()` gives it an offset and
+an angle, both zero at rest, so that a move or a turn is seen as a short
+motion.
 
 ### Landing outline
 
@@ -98,6 +113,9 @@ thick, in the colour of the piece at alpha `LANDING_ALPHA` (`0.5`).
 The falling piece is drawn after the outline and covers it where they overlap.
 No outline is drawn when the piece is already on its landing row.
 
+The outline always uses the real position of the piece, not the drawn one. It
+moves in the same frame as the key.
+
 ## The side panel
 
 `draw_panel` draws right of the well. Its content starts at x = 380
@@ -106,11 +124,12 @@ No outline is drawn when the piece is already on its landing row.
 | Element | x | y | Size | Colour |
 | --- | --- | --- | --- | --- |
 | Label `SCORE` | 380 | 34 | 16 | `DIM` |
-| Score | 380 | 74 | 48 | `TEXT` |
+| Score, as given by `Fx::score` | 380 | 74 | 48 | `TEXT`, plus `Fx::score_tint` |
+| Gain `+<points>`, for 1 s after scoring | right edge at 540 | 34 | 16 | Colour of the piece that scored |
 | Label `LINES` | 380 | 112 | 16 | `DIM` |
 | Rows removed (`lines`) | 380 | 140 | 28 | `TEXT` |
 | Label `LEVEL` | 460 | 112 | 16 | `DIM` |
-| Level (`level() + 1`) | 460 | 140 | 28 | `TEXT`, plus the [level highlight](#display-timers) |
+| Level (`level() + 1`) | 460 | 140 | 28 | `TEXT`, plus the [level highlight](#level-highlight) |
 | Label `NEXT` | 380 | 182 | 16 | `DIM` |
 | Slot for `next` | 380 | 192 | 160 by 160 | See below |
 | Label `THEN` | 380 | 392 | 14 | `DIM` |
@@ -152,6 +171,9 @@ All colours are constants built with `Color::new(r, g, b, a)`.
 | `COLORS[1]` | 0.88, 0.58, 0.36, 1.0 | Pieces of 4 cells (orange), and the level highlight. |
 | `COLORS[2]` | 0.92, 0.88, 0.70, 1.0 | Pieces of 5 cells (pale sand). |
 
+Effects add no colour of their own. They use the colour of the piece or cell
+concerned, `COLORS[1]` for the level, and white for light.
+
 The colour of a piece tells its cell count, not its shape. The comment on
 `COLORS` says the three colours rise in lightness "so they also read without
 hue". `Piece.color` and the
@@ -162,16 +184,6 @@ locked cell keeps the colour of its piece.
 
 `draw_overlay` runs last and draws only over the well.
 
-### Band over removed rows
-
-When a lock removes rows, a white band flashes where they were. For each row
-index in `cleared`, a white rectangle one cell high and as wide as the well is
-drawn at alpha `0.35 * flash / FLASH`. The band fades from 0.35 to 0 in `FLASH`
-(`0.25` s).
-
-`cleared` holds the row indices from before the rows above moved down. The band
-is drawn at those rows, over what is there now.
-
 ### Pause and game-over overlay
 
 It is drawn when the game is over or paused.
@@ -181,10 +193,15 @@ It is drawn when the game is over or paused.
 | Over | `Game over` | `Score <score>` | `R  new game` |
 | Paused | `Paused` | `P  resume` | `R  new game` |
 
-- A `BG` rectangle at alpha `0.7` dims the well. The side panel is not dimmed.
+- `BG` at alpha `0.7` dims the well, drawn as one rectangle per row. The side
+  panel is not dimmed.
 - A box of 260 by 150 is centred in the well, with its top left corner at
   (50, 255). It is filled with `BG` and outlined in `DIM`, 2 units thick.
 - Each line is centred in the well with `measure_text`.
+- A pause shows all of this at once. At the end of a game the final state is
+  held, the rows dim from the top down and the box fades in. `Fx::over_dim`
+  and `Fx::over_box` give the progress. See
+  [Effects](effects.md#game-over).
 
 | Line | y below the top of the box | Size | Colour |
 | --- | --- | --- | --- |
@@ -192,19 +209,13 @@ It is drawn when the game is over or paused.
 | 2 | 92 | 24 | `TEXT` |
 | 3 | 124 | 20 | `DIM` |
 
-## Display timers
+## Level highlight
 
-Two fields of `Game` drive effects that fade with time. `Game::lock` starts
-them; `Game::draw` counts them down by the frame time, never below `0.0`.
+The level number is drawn a second time, over the first, in `COLORS[1]`. Its
+alpha is `((GLOW - t) / GLOW_FADE)` kept between 0 and 1, where `t` is
+`Fx::levelled()`, the seconds since the level last rose. With `GLOW` = `1.3` s
+and `GLOW_FADE` = `0.7` s, the number is fully orange for 0.6 s, then fades
+back to `TEXT` over 0.7 s.
 
-| Field | Started when | Start value | Effect |
-| --- | --- | --- | --- |
-| `flash` | A lock removes at least one row. | `FLASH` = `0.25` s | The band over removed rows. |
-| `glow` | A lock raises the level. | `GLOW` = `1.3` s | The level highlight. |
-
-The level highlight is the level number drawn a second time, over the first, in
-`COLORS[1]` at alpha `(glow / GLOW_FADE).min(1.0)`. With `GLOW_FADE` = `0.7` s,
-the number is fully orange for 0.6 s, then fades back to `TEXT` over 0.7 s.
-
-`draw` runs in every state, so both timers keep running during a pause and
-after the game is over.
+The rest of the level change, and every other effect, is on
+[Effects](effects.md).
