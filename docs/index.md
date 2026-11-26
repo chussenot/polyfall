@@ -3,6 +3,7 @@ title: Polyfall
 description: What Polyfall is, the terms this documentation uses, and the order in which to read the pages.
 source:
   - src/main.rs
+  - src/fx.rs
   - PRODUCT.md
 ---
 
@@ -12,8 +13,8 @@ This page says what the program is and where to go next. Start here if you are
 new to the code.
 
 Polyfall is a single-player falling-block puzzle game for a desktop window. It
-is written in Rust with the macroquad 0.4 library. All game code, including its
-unit tests, is in one file: `src/main.rs`.
+is written in Rust with the macroquad 0.4 library. The game and its unit tests are in `src/main.rs`. The visual effects, with
+their own tests, are in `src/fx.rs`.
 
 ![Polyfall: a piece falling into the well, with the two upcoming pieces shown in the side panel](assets/screenshot.png)
 
@@ -62,6 +63,7 @@ Read the other reference pages when you need them:
 | [Controls and timing](reference/controls-and-timing.md) | What each key does, how key repeat and pause work, and every timing value. |
 | [Rotation and kicks](reference/rotation-and-kicks.md) | How a piece turns and when a turn is refused. |
 | [Rendering and layout](reference/rendering-and-layout.md) | Where and in what colour each thing is drawn. |
+| [Effects](reference/effects.md) | What moves, lights up or breaks apart when something happens, for how long, and why it cannot change the game. |
 | [Game state](reference/game-state.md) | What a field of `Game` or `Piece` means and which functions change it. |
 | [Tests](reference/tests.md) | What the tests prove and what has no test. |
 | [Limits and edge cases](reference/limits.md) | Where the game behaves in a way you might not expect. |
@@ -70,4 +72,4 @@ Read the other reference pages when you need them:
 
 It describes what the code does, not what the code was meant to do. The `source`
 list in the front matter of each page names the functions, constants and files
-the page describes. If a page and `src/main.rs` disagree, the code is right.
+the page describes. If a page and the source disagree, the code is right.

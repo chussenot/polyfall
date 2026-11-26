@@ -7,6 +7,7 @@ source:
   - mkdocs.yml
   - docs/js/mermaid-init.js
   - src/main.rs
+  - src/fx.rs
 ---
 
 # Development
@@ -42,7 +43,7 @@ Run a task with `mise run <task>`.
 | --- | --- | --- |
 | `run` | `cargo run --release` | Builds the optimised binary and starts the game. |
 | `dev` | `watchexec --restart --exts rs,toml -- cargo run` | Starts a debug build of the game and restarts it each time a `.rs` or `.toml` file changes. |
-| `test` | `cargo test` | Runs the unit tests in `src/main.rs`. No window opens. |
+| `test` | `cargo test` | Runs the unit tests in `src/main.rs` and `src/fx.rs`. No window opens. |
 | `fmt` | `cargo fmt` | Formats the source. |
 | `lint` | `cargo fmt --check`, then `cargo clippy --all-targets -- -D warnings` | Fails if the source is not formatted or if clippy reports any warning. |
 | `build` | `cargo build --release` | Builds the optimised binary at `target/release/polyfall` without starting it. |
@@ -53,7 +54,7 @@ Run a task with `mise run <task>`.
 
 A usual working session:
 
-1. `mise run dev` in one terminal, and edit `src/main.rs`.
+1. `mise run dev` in one terminal, and edit `src/main.rs` or `src/fx.rs`.
 2. `mise run test` after a change to game logic.
 3. `mise run check` before a commit.
 
@@ -86,7 +87,13 @@ the keyboard and passes the values in. Follow the same pattern for new logic.
 
 Only these functions call drawing, time or input functions, and none of them is
 tested: `main`, `Game::update`, `Game::draw`, `Game::draw_well`,
-`Game::draw_panel`, `Game::draw_overlay` and `draw_cell`.
+`Game::draw_panel`, `Game::draw_overlay`, `draw_piece`, `Fx::draw_under`,
+`Fx::draw_clear` and `Fx::draw_over`.
+
+Effects follow the same rule. `Fx::on(event)` and `Fx::tick(dt)` receive what
+happened and how much time passed, and the functions that say how to draw
+(`Fx::block`, `Fx::piece_pose`, `Fx::score` and the others) only compute. All
+of them are tested without a window.
 
 macroquad's random generator (`rand::gen_range`) works without a window.
 `random_piece` uses it and is tested.
@@ -112,8 +119,8 @@ built, and the game code does not refer to it.
   `source` names the functions, constants and files the page describes. Update
   the page when one of them changes.
 
-### One source file
+### Two source files
 
-All game code and all tests are in `src/main.rs`. There are no modules, no
-assets and no configuration files. [Components](architecture/components.md)
-maps the file.
+The game and its tests are in `src/main.rs`. The visual effects and their tests
+are in `src/fx.rs`, the only module. There are no assets and no configuration
+files. [Components](architecture/components.md) maps both files.

@@ -26,7 +26,7 @@ The program reads seven keys. They cannot be remapped.
 | Left, Right | Move the piece one column. Repeats while held. | Playing | `Game::update` |
 | Up | Rotate the piece once. | Playing | `Game::update` |
 | Down | Soft drop: while held, the fall interval is `0.04` s. | Playing | `Game::update` |
-| Space | Hard drop: move the piece down until it stops, and lock it. | Playing | `Game::update` |
+| Space | Hard drop: move the piece down until it stops, and lock it. | Playing | `Game::update`, `Game::hard_drop` |
 | P | Pause or resume. | Not over | `main` |
 | R | Start a new game. | Over or paused | `main` |
 
@@ -144,10 +144,11 @@ Every timer advances by `get_frame_time()`. There is no fixed time step.
 | literal `0.6` | s | Fall interval at `level()` 0. | `Game::update` |
 | literal `0.05` | s | Amount the fall interval shrinks per level. | `Game::update` |
 | literal `0.08` | s | Shortest fall interval without soft drop. | `Game::update` |
-| `FLASH` | `0.25` s | Time the band over removed rows takes to fade. | `Game::lock`, `Game::draw_overlay` |
-| `GLOW` | `1.3` s | Time the level number stays highlighted. | `Game::lock` |
+| `GLOW` | `1.3` s | Time the level number stays highlighted. | `Game::draw_panel` |
 | `GLOW_FADE` | `0.7` s | Last part of `GLOW`, during which the highlight fades. | `Game::draw_panel` |
 
 The fall intervals per level are on [Game rules](game-rules.md#level-and-speed).
-`FLASH`, `GLOW` and `GLOW_FADE` are explained on
-[Rendering and layout](rendering-and-layout.md#display-timers).
+`GLOW` and `GLOW_FADE` are explained on
+[Rendering and layout](rendering-and-layout.md#level-highlight). The durations
+of all other effects are constants in `src/fx.rs`, listed on
+[Effects](effects.md). No effect delays a key or a rule.

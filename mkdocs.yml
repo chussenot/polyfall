@@ -1,5 +1,5 @@
 site_name: Polyfall
-site_description: How Polyfall works and how to develop it, described from src/main.rs.
+site_description: How Polyfall works and how to develop it, described from the source in src/.
 docs_dir: docs
 
 nav:
@@ -14,6 +14,7 @@ nav:
       - Controls and timing: reference/controls-and-timing.md
       - Rotation and kicks: reference/rotation-and-kicks.md
       - Rendering and layout: reference/rendering-and-layout.md
+      - Effects: reference/effects.md
       - Game state: reference/game-state.md
       - Tests: reference/tests.md
       - Limits and edge cases: reference/limits.md

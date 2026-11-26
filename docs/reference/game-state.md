@@ -5,6 +5,7 @@ source:
   - Game
   - Piece
   - Grid
+  - Event
   - Game::new
   - Game::fits
   - Game::level
@@ -34,7 +35,7 @@ functions that change the field afterwards.
 | Field | Type | Initial value | Meaning | Written by | Read by |
 | --- | --- | --- | --- | --- | --- |
 | `grid` | `Grid`, which is `[[u8; 12]; 22]` | all `0` | The well, as `grid[row][column]`. `0` is an empty cell. 1, 2 or 3 is a locked cell and its colour number. | `lock` | `fits`, `rotate`, `lock`, `draw_well` |
-| `piece` | `Piece` | `random_piece()` | The falling piece. | `shift`, `rotate`, `lock` | `shift`, `landing_y`, `rotate`, `lock`, `draw_well` |
+| `piece` | `Piece` | `random_piece()` | The falling piece. | `shift`, `rotate`, `hard_drop`, `lock` | `shift`, `landing_y`, `rotate`, `hard_drop`, `lock`, `draw_well` |
 | `next` | `Piece` | `random_piece()` | The first upcoming piece. | `lock` | `lock`, `draw_panel` |
 | `after` | `Piece` | `random_piece()` | The second upcoming piece. It follows `next`. | `lock` | `lock`, `draw_panel` |
 | `score` | `u32` | `0` | Points. | `lock` | `draw_panel`, `draw_overlay` |
@@ -44,9 +45,10 @@ functions that change the field afterwards.
 | `idle` | `f32` | `0.0` | Seconds of play with no key held, for the automatic pause. | `tick_idle` | `tick_idle` |
 | `over` | `bool` | `false` | The game has ended. | `lock` | `main`, `can_restart`, `tick_idle`, `draw_overlay` |
 | `paused` | `bool` | `false` | The game is paused, by P or by the automatic pause. | `main`, `tick_idle` | `main`, `can_restart`, `tick_idle`, `draw_overlay` |
-| `cleared` | `Vec<usize>` | empty | Indices of the rows the last lock removed, as they were before the rows above moved down. Every lock replaces it, so it is empty after a lock that removes nothing. | `lock` | `lock`, `draw_overlay` |
-| `flash` | `f32` | `0.0` | Seconds left on the band over removed rows. | `lock`, `draw` | `draw`, `draw_overlay` |
-| `glow` | `f32` | `0.0` | Seconds left on the level highlight. | `lock`, `draw` | `draw`, `draw_panel` |
+| `events` | `Vec<Event>` | empty | What happened since `main` last emptied it, in order. Game logic only pushes to it. | `shift`, `rotate`, `hard_drop`, `lock`, `main` | `main` |
+
+The state of the effects is not in `Game`. It is in a separate `Fx` value,
+also owned by `main`. See [Effects](effects.md).
 
 ## `Piece`
 
@@ -80,6 +82,8 @@ Keep these true when you change the code.
   on this: it writes the cells into `grid` without checking the indices.
 - **`color` is never `0` for a piece.** Drawing code indexes
   `COLORS[color as usize - 1]`.
+- **No rule reads `events` or `Fx`.** They exist for the display. A change
+  there must never change the well, the score or a timing.
 - **`over` and `paused` are never both true in normal play.** P is ignored
   when the game is over, and `tick_idle` does not pause a game that is over.
 
