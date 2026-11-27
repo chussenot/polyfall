@@ -1,6 +1,6 @@
 ---
 title: Tests
-description: What each of the 27 unit tests in src/main.rs and src/fx.rs proves, and which behaviour has no test.
+description: What each of the 31 unit tests in src/main.rs and src/fx.rs proves, and which behaviour has no test.
 source:
   - tests::random_pieces_spawn_inside_the_well
   - tests::landing_row_stops_on_the_stack_or_the_floor
@@ -29,8 +29,8 @@ you change game logic, to know whether a test will catch a mistake.
 
 ## How the tests work
 
-There are 27 tests: 17 for the game in the `tests` module at the end of
-`src/main.rs`, and 10 for the effects in the `tests` module at the end of
+There are 31 tests: 17 for the game in the `tests` module at the end of
+`src/main.rs`, and 14 for the effects in the `tests` module at the end of
 `src/fx.rs`. Run them with `mise run test`. They open no window. Each test builds a `Game`, sets
 fields by hand to create a situation, calls one function and checks the result.
 
@@ -94,6 +94,10 @@ tuning values. [Effects](effects.md) describes what they test.
 | --- | --- |
 | `rows_above_a_clear_start_where_they_were_and_end_in_place` | After two rows are removed, a cell above them is first drawn two rows up, and at its real place once the collapse has finished. |
 | `rows_between_two_cleared_rows_come_down_by_one` | With rows removed above and below it, a row comes down by one and the rows above by two. A cell of the piece that survived is followed to its new row. |
+| `a_lock_during_a_clear_hurries_it_without_a_jump` | A lock 0.06, 0.13 or 0.22 s into a clear leaves the stack drawn exactly where it was, draws the new piece where it landed, brings the stack to its real place within four frames without ever moving it back up, and still lets every cleared cell break up once. |
+| `a_clear_during_a_clear_takes_over_without_a_jump` | A second clear 0.1 or 0.22 s into the first replaces it, draws the stack exactly where it was, and then plays as a normal clear. |
+| `irregular_frames_end_in_the_same_place` | 0.3 s with a hard drop, a three-row clear and a lock in the middle of it gives the same stack position, shown score, knock and fragment count in even 20 ms frames and in frames from 1 to 60 ms. |
+| `nothing_is_left_running_after_a_long_frame` | After one 5 s frame every effect has ended: no clear, lock, trail, fragment, offset, knock or label is left. |
 | `every_cleared_cell_breaks_up_exactly_once` | For 1 to 5 rows, each cell throws its fragments once, the count never passes `MAX_SPARKS`, and nothing is left afterwards. |
 | `a_bigger_clear_is_a_bigger_event` | From 1 to 4 rows, each step gives more fragments and a harder knock. |
 | `effects_do_not_depend_on_the_frame_rate` | 0.1 s played in 3 steps and in 24 steps gives the same piece offset, shown score, knock, fragment count and fragment positions. |
@@ -109,7 +113,7 @@ tuning values. [Effects](effects.md) describes what they test.
 | --- | --- |
 | `Game::update` | The whole function: reading keys, the move on a press, applying repeat moves, both keys held, hard drop, soft drop, falling, and the lock when the piece cannot move down. |
 | `main` | The order of a frame, the P toggle, P being ignored when the game is over, and the seeding of the random generator. |
-| Rendering | `conf`, `draw_piece`, the `Game::draw` family and the three `Fx::draw_*` functions: what is actually drawn. |
+| Rendering | `conf`, `draw_piece`, the `Game::draw` family and the three `Fx::draw_*` functions: what is actually drawn, including which moves get a faint copy of the piece. This can only be judged by running the game. |
 | Effects in `main` | That `Fx::tick` is skipped during a pause and that a restart replaces `Fx`. |
 | Fall speed | The formula `(0.6 - 0.05 * level).max(0.08)` and the soft-drop value `0.04`. |
 | `Game::level` | Not checked directly. One test checks only that `LevelUp` is pushed when `lines` goes from 9 to 11. |

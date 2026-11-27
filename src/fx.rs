@@ -41,6 +41,8 @@ const COLLAPSE_AT: f32 = 0.17; // seconds before the rows above start to come do
 const COLLAPSE_LAG: f32 = 0.008; // extra wait per row of distance from the cleared rows
 const COLLAPSE_LAG_ROWS: u8 = 8;
 const COLLAPSE: f32 = 0.15; // seconds one row takes to come down
+const HURRY: f32 = 4.0; // how many times faster a clear plays out once another piece has locked
+const INHERIT: f32 = 0.06; // seconds a new clear takes to absorb what an unfinished one left
 const RIPPLE: f32 = 0.5;
 const CLEAR_END: f32 = 0.6;
 const MAX_SPARKS: usize = 320; // five rows at five fragments a cell is 300
@@ -145,6 +147,8 @@ struct Clear {
     fall: [u8; ROWS],       // per row of the grid as it is now: how many rows it came down
     lag: [u8; ROWS],        // per row of the grid as it is now: its distance above the cleared rows
     age: f32,
+    hurried: Option<f32>, // its age when another piece locked, if one did before it finished
+    inherited: [f32; ROWS], // per row as `fall`: offset left by a clear this one replaced, <= 0
 }
 
 impl Clear {
@@ -184,6 +188,27 @@ impl Clear {
             fall,
             lag,
             age: 0.0,
+            hurried: None,
+            inherited: [0.0; ROWS],
+        }
+    }
+
+    /// Takes over from `old`, a clear that had not finished when this one's lock arrived, so that
+    /// every row starts exactly where `old` was drawing it. `removed` are this clear's rows.
+    fn inherit(&mut self, old: &Clear, removed: &[usize]) {
+        for row in (0..ROWS).filter(|row| !removed.contains(row)) {
+            let below = removed.iter().filter(|&&r| r > row).count();
+            self.inherited[row + below] = old.row_dy(row, false);
+        }
+    }
+
+    /// The time the break-up and the collapse are played at. It is the age, until another piece
+    /// locks: the stack must then be where it really is almost at once, so the rest runs `HURRY`
+    /// times faster and skips the wait before the collapse. Nothing jumps; it only gets quicker.
+    fn clock(&self) -> f32 {
+        match self.hurried {
+            None => self.age,
+            Some(at) => at + (self.age - at) * HURRY,
         }
     }
 
@@ -191,13 +216,26 @@ impl Clear {
     fn reached(&self, i: usize, x: usize) -> f32 {
         // the lowest row goes first
         let wait = (self.rows.len() - 1 - i) as f32 * ROW_LAG;
-        self.age - wait - (x as f32 + 0.5 - self.origin[i]).abs() / SWEEP_SPEED
+        self.clock() - wait - (x as f32 + 0.5 - self.origin[i]).abs() / SWEEP_SPEED
     }
 
     /// How far above its real place a row of the current grid is drawn, in view units (<= 0).
-    fn row_dy(&self, row: usize) -> f32 {
-        let t = (self.age - COLLAPSE_AT - self.lag[row] as f32 * COLLAPSE_LAG) / COLLAPSE;
-        -(self.fall[row] as f32) * CELL * (1.0 - ease_in_out(t))
+    /// `fresh` is for the cells of the piece that has just locked: they are where they landed,
+    /// whatever an earlier clear is still doing to the rows around them.
+    fn row_dy(&self, row: usize, fresh: bool) -> f32 {
+        if fresh && self.hurried.is_some() {
+            return 0.0;
+        }
+        let wait = match self.hurried {
+            None => COLLAPSE_AT,
+            Some(at) => COLLAPSE_AT.min(at), // interrupted before the collapse: it starts now
+        };
+        let t = (self.clock() - wait - self.lag[row] as f32 * COLLAPSE_LAG) / COLLAPSE;
+        let own = -(self.fall[row] as f32) * CELL * (1.0 - ease_in_out(t));
+        if fresh {
+            return own;
+        }
+        own + self.inherited[row] * (1.0 - ease_in_out(self.age / INHERIT))
     }
 }
 
@@ -363,11 +401,19 @@ impl Fx {
         self.spin = 0.0;
         self.turned = NEVER;
 
-        // a clear still in flight is cut short: the stack must be drawn where it really is by now
-        self.clear = None;
         if !cleared.is_empty() {
+            // a clear still in flight gives way to the new one, which starts from where it left
+            // the stack
             self.knock((1.0 + cleared.len() as f32) * lively);
-            self.clear = Some(Clear::new(cleared, cells, before));
+            let mut clear = Clear::new(cleared.clone(), cells, before);
+            if let Some(old) = &self.clear {
+                clear.inherit(old, &cleared);
+            }
+            self.clear = Some(clear);
+        } else if let Some(clear) = &mut self.clear {
+            // a clear still in flight is hurried, not cut: the stack is where it really is within
+            // a few frames, and the rows still breaking up get to finish
+            clear.hurried.get_or_insert(clear.age);
         }
         if points > 0 {
             self.owed = self.owed * (1.0 - ease_out(self.scored / ROLL)) + points as f32;
@@ -451,6 +497,7 @@ impl Fx {
         let n = clear.rows.len();
         let per_cell = [2, 3, 3, 5, 5][n.min(5) - 1];
         let force = (0.75 + 0.2 * n as f32) * (1.0 + 0.35 * self.energy);
+        let rate = clear.hurried.map_or(1.0, |_| HURRY); // `reached` runs on the hurried clock
         for i in 0..n {
             for x in 0..COLS {
                 let late = clear.reached(i, x) - HOLD;
@@ -471,7 +518,7 @@ impl Fx {
                     let size = self.range(3.0, 6.5);
                     let life = self.range(0.35, 0.60) + 0.04 * n as f32;
                     // `late` keeps a slow frame from bunching fragments at their start
-                    self.spark(from, vel, size, life, late, clear.cells[i][x]);
+                    self.spark(from, vel, size, life, late / rate, clear.cells[i][x]);
                 }
             }
         }
@@ -496,7 +543,13 @@ impl Fx {
 
     /// Where the locked cell at column `x`, row `y` is drawn, and how much it is brightened.
     pub fn block(&self, x: usize, y: usize) -> (Rect, f32) {
-        let dy = self.clear.as_ref().map_or(0.0, |c| c.row_dy(y));
+        // the piece that just locked is where it landed, even if the stack around it is still
+        // coming down from an earlier clear
+        let fresh = self
+            .lock
+            .as_ref()
+            .is_some_and(|l| l.cells.contains(&(x, y)));
+        let dy = self.clear.as_ref().map_or(0.0, |c| c.row_dy(y, fresh));
         let mut r = Rect::new(
             x as f32 * CELL + 1.0,
             y as f32 * CELL + 1.0 + dy,
@@ -650,7 +703,7 @@ impl Fx {
                 draw_rectangle(x as f32 * CELL + inset, y + inset, side, side, color);
             }
             // the two fronts of the sweep, leaving the column where the piece closed the row
-            let since = c.age - (c.rows.len() - 1 - i) as f32 * ROW_LAG;
+            let since = c.clock() - (c.rows.len() - 1 - i) as f32 * ROW_LAG;
             if since < 0.0 {
                 continue;
             }
@@ -789,6 +842,131 @@ mod tests {
         assert_eq!((c.fall[BOTTOM], c.fall[BOTTOM - 1]), (1, 2));
         // the cell of the piece that survived is tracked where it is now, one row lower
         assert_eq!(fx.lock.as_ref().unwrap().cells, vec![(0, BOTTOM)]);
+    }
+
+    #[test]
+    fn a_lock_during_a_clear_hurries_it_without_a_jump() {
+        let empty: Grid = [[0; COLS]; ROWS];
+        let per_cell = 3; // two rows
+        for interrupt_at in [0.06, 0.13, 0.22] {
+            let mut fx = Fx::default();
+            fx.on(clear_event(&[BOTTOM - 1, BOTTOM]));
+            fx.tick(interrupt_at);
+            let before = fx.block(5, BOTTOM).0.y;
+            let thrown = fx.sparks.len();
+            fx.on(settled_lock(vec![(9, BOTTOM as i32)], empty));
+            // the stack is drawn exactly where it was the frame before: nothing jumps
+            assert_eq!(fx.block(5, BOTTOM).0.y, before);
+            assert!(before < BOTTOM as f32 * CELL + 1.0);
+            // the piece that locked is drawn where it landed, give or take the last of its own
+            // slide, and not up with the rows that are still coming down
+            assert!((fx.block(9, BOTTOM).0.y - (BOTTOM as f32 * CELL + 1.0)).abs() < 2.0);
+            // four frames later the stack is where it really is
+            let mut last = before;
+            for _ in 0..4 {
+                fx.tick(1.0 / 60.0);
+                let y = fx.block(5, BOTTOM).0.y;
+                assert!(y >= last);
+                last = y;
+            }
+            assert_eq!(last, BOTTOM as f32 * CELL + 1.0);
+            // and every cell still got to break up
+            assert!(fx.sparks.len() >= thrown);
+            fx.tick(0.02);
+            let burst: u32 = fx
+                .clear
+                .as_ref()
+                .unwrap()
+                .burst
+                .iter()
+                .map(|b| b.count_ones())
+                .sum();
+            assert_eq!(burst as usize, 2 * COLS);
+            assert!(fx.sparks.len() <= 2 * COLS * per_cell);
+        }
+    }
+
+    #[test]
+    fn a_clear_during_a_clear_takes_over_without_a_jump() {
+        for interrupt_at in [0.1, 0.22] {
+            let mut fx = Fx::default();
+            fx.on(clear_event(&[BOTTOM - 1, BOTTOM]));
+            fx.tick(interrupt_at);
+            // where a cell on the row above the bottom one is drawn while the stack comes down
+            let before = fx.block(5, BOTTOM - 1).0.y;
+            assert!(before < (BOTTOM - 1) as f32 * CELL + 1.0);
+            // the bottom row goes next, with a cell on the row above it
+            let mut grid: Grid = [[0; COLS]; ROWS];
+            grid[BOTTOM] = [1; COLS];
+            grid[BOTTOM - 1][5] = 2;
+            fx.on(Event::Locked {
+                cells: vec![(0, BOTTOM as i32)],
+                color: 1,
+                cleared: vec![BOTTOM],
+                before: Box::new(grid),
+                points: 100,
+            });
+            let c = fx.clear.as_ref().unwrap();
+            assert_eq!((c.rows.len(), c.age, c.hurried), (1, 0.0, None));
+            // that cell is on the bottom row of the grid now, and drawn exactly where it was
+            assert!((fx.block(5, BOTTOM).0.y - before).abs() < 1e-3);
+            fx.tick(INHERIT);
+            assert_eq!(fx.block(5, BOTTOM).0.y, (BOTTOM - 1) as f32 * CELL + 1.0);
+            fx.tick(1.0);
+            assert_eq!(fx.block(5, BOTTOM).0.y, BOTTOM as f32 * CELL + 1.0);
+        }
+    }
+
+    #[test]
+    fn irregular_frames_end_in_the_same_place() {
+        // the same 0.3 s in even steps and in steps from 1 to 60 ms, including a lock mid-clear
+        let run = |steps: &[f32]| {
+            let empty: Grid = [[0; COLS]; ROWS];
+            let mut fx = Fx::default();
+            fx.on(Event::HardDropped { rows: 9 });
+            fx.on(clear_event(&[BOTTOM - 2, BOTTOM - 1, BOTTOM]));
+            let mut t = 0.0;
+            let mut interrupted = false;
+            for &dt in steps {
+                fx.tick(dt);
+                t += dt;
+                if t >= 0.12 - 1e-4 && !interrupted {
+                    fx.on(settled_lock(vec![(9, BOTTOM as i32)], empty));
+                    interrupted = true;
+                }
+            }
+            assert!((t - 0.3).abs() < 1e-4);
+            (
+                fx.block(5, BOTTOM).0.y,
+                fx.score(900),
+                fx.kick_px(),
+                fx.sparks.len(),
+            )
+        };
+        let even = run(&[0.02; 15]);
+        let rough = run(&[0.001, 0.059, 0.016, 0.044, 0.003, 0.057, 0.033, 0.027, 0.06]);
+        assert_eq!((even.0, even.1, even.3), (rough.0, rough.1, rough.3));
+        assert!((even.2 - rough.2).abs() < 1e-3);
+    }
+
+    #[test]
+    fn nothing_is_left_running_after_a_long_frame() {
+        let mut fx = Fx::default();
+        fx.on(Event::Moved { dx: 1, dy: 0 });
+        fx.on(Event::Rotated { dx: 0, dy: 0 });
+        fx.on(Event::HardDropped { rows: 15 });
+        fx.on(clear_event(&[BOTTOM - 1, BOTTOM]));
+        fx.on(Event::LevelUp { level: 1 });
+        fx.tick(5.0); // one frame, as after a stalled window
+        assert!(fx.clear.is_none() && fx.lock.is_none() && fx.trail.is_none());
+        assert!(fx.sparks.is_empty() && fx.gain().is_none());
+        let (slide, spin, flash) = fx.piece_pose();
+        assert!(slide.length() < 1e-3 && spin.abs() < 1e-3 && flash == 0.0);
+        assert_eq!(
+            (fx.kick_px(), fx.score(400), fx.block(5, BOTTOM).1),
+            (0.0, 400, 0.0)
+        );
+        assert!(fx.levelled() > LEVEL_SWEEP);
     }
 
     #[test]
