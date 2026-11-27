@@ -344,10 +344,12 @@ impl Game {
         }
         // drawn after the outline, so the piece covers it where they overlap
         let (slide, spin, flash) = fx.piece_pose();
-        let moving = (slide.length() / CELL + spin.abs()).min(1.0);
+        // a faint copy further back along a sideways move or a turn: the moves the player makes.
+        // Falling gets none: under a soft drop it would flicker above the piece on every row.
+        let moving = (slide.x.abs() / CELL + spin.abs()).min(1.0);
         if moving > 0.02 {
-            // a faint copy further back along the motion
-            draw_piece(p, slide * 1.8, spin * 1.6, alpha(color, 0.2 * moving));
+            let behind = vec2(slide.x * 1.8, slide.y);
+            draw_piece(p, behind, spin * 1.6, alpha(color, 0.2 * moving));
         }
         draw_piece(p, slide, spin, color);
         if flash > 0.0 {

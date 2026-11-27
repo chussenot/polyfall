@@ -95,8 +95,9 @@ The real piece moves at once. The drawn piece starts where it was and closes
 the gap: 85% of it in 50 ms. A turn is drawn the same way, from a quarter turn
 back. A turned piece is also brightened for `0.09` s.
 
-A faint copy of the piece is drawn further back along the motion. It fades as
-the piece arrives.
+After a sideways move or a turn, a faint copy of the piece is drawn further
+back along the motion. It fades as the piece arrives. Falling gets no such
+copy: with Down held it would flicker above the piece on every row.
 
 The landing outline uses the real position, not the drawn one. It answers a key
 in the same frame.
@@ -152,9 +153,17 @@ The number of rows sets the strength:
 | Knock, in units | 2 | 3 | 4 | 5 | 6 |
 | Reach of the pulse lines, in units | 105 | 160 | 215 | 270 | 325 |
 
-If another piece locks while a collapse is still being drawn, the collapse is
-cut short and the stack is drawn where it is. Fragments already thrown carry
-on.
+### A lock during a clear
+
+A fast player can lock the next piece before a clear has finished. The clear is
+never cut: nothing on screen jumps.
+
+| The new lock | What happens to the unfinished clear |
+| --- | --- |
+| Removes no row | It plays on 4 times faster (`HURRY`) and no longer waits before the collapse. The stack is where it really is within about four frames, and cells still lit get to break up. The piece that just locked is drawn where it landed from the first frame. |
+| Removes rows too | The new clear replaces it and starts every row exactly where the old one was drawing it. That inherited offset is absorbed in `0.06` s (`INHERIT`). Cells of the old clear that had not broken up yet are dropped. |
+
+Fragments already thrown carry on in both cases.
 
 ### Score and level
 
@@ -207,7 +216,9 @@ break them. See [Tests](tests.md#effects).
 
 | Behaviour | Cause |
 | --- | --- |
-| For up to about `0.4` s after rows are removed, the stack is drawn higher than it is. Collision and the landing outline use the real well during that time. | `Fx::block`, `Clear::row_dy` |
+| For up to about `0.4` s after rows are removed, the stack is drawn higher than it is. Collision and the landing outline use the real well during that time. A lock in that time shortens it to about four frames. | `Fx::block`, `Clear::row_dy` |
+| When a clear replaces an unfinished one, the lit cells of the old one that had not broken up disappear without fragments. | `Fx::on` |
+| A lock replaces the lock effect before it: with hard drops less than `0.2` s apart, the trail and ring of the earlier one end early. | `Fx::on` |
 | The drawn piece trails the real one by a fraction of a cell while it moves. With Down held it locks before it has fully caught up; the lock effect carries the remaining offset and removes it smoothly. | `Fx::piece_pose`, `Fx::block` |
 | At most 320 fragments exist at once. More are not created. Five rows need 300. | `MAX_SPARKS` |
 | Fragments that would cross into the side panel or below the floor are not drawn. | `Fx::draw_over` |
