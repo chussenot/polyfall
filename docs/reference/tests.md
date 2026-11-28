@@ -1,6 +1,6 @@
 ---
 title: Tests
-description: What each of the 50 unit tests in src/main.rs, src/fx.rs, src/sound.rs and src/stage.rs proves, and which behaviour has no test.
+description: What each of the 55 unit tests in src/main.rs, src/fx.rs, src/sound.rs, src/best.rs and src/stage.rs proves, and which behaviour has no test.
 source:
   - tests::random_pieces_spawn_inside_the_well
   - tests::landing_row_stops_on_the_stack_or_the_floor
@@ -33,12 +33,13 @@ you change game logic, to know whether a test will catch a mistake.
 
 ## How the tests work
 
-There are 50 tests: 19 for the game in the `tests` module at the end of
+There are 55 tests: 22 for the game in the `tests` module at the end of
 `src/main.rs`, 14 for the effects in the `tests` module at the end of
 `src/fx.rs`, 13 for the sound in the `tests` module at the end of
-`src/sound.rs`, and 4 for the staging keys in `src/stage.rs`. Run them with
-`mise run test`, which is `cargo test --all-features`: plain `cargo test`
-leaves the staging keys out and runs 46. They open no window and play no
+`src/sound.rs`, 2 for the best score in `src/best.rs`, and 4 for the staging
+keys in `src/stage.rs`. Run them with `mise run test`, which is
+`cargo test --all-features`: plain `cargo test` leaves the staging keys out and
+runs 51. They open no window and play no
 sound. Each test builds a `Game`, sets
 fields by hand to create a situation, calls one function and checks the result.
 
@@ -66,6 +67,16 @@ Functions that read the keyboard or draw cannot be tested this way.
 | `the_end_of_the_game_is_reported_once_after_the_last_lock` | `Game::lock` | A lock that ends the game pushes `Locked` then `GameOver`. |
 | `lock_shifts_the_two_upcoming_pieces` | `Game::lock` | After a lock, `piece` has the cells `next` had and `next` has the cells `after` had. |
 | `blocked_spawn_area_ends_the_game` | `Game::lock` | With rows 0 to 4 filled except column 0, a lock removes nothing and sets `over`. |
+| `a_resting_piece_locks_after_the_lock_delay_and_not_before` | `Game::gravity` | With Down held or not, a piece on the floor is still free 0.01 s before `LOCK_DELAY` and locked after it. The next piece starts with no time on the ground and no resets used. |
+| `a_move_on_the_ground_restarts_the_delay_a_limited_number_of_times` | `Game::gravity` | `LOCK_RESETS` moves, each just before the lock, keep the piece free. The next move does not: it locks. |
+| `a_piece_in_the_air_falls_and_does_not_count_toward_the_lock` | `Game::gravity` | A piece with room below gathers no time on the ground and falls one row after the fall interval. |
+
+### Best score
+
+| Test | What it proves |
+| --- | --- |
+| `a_saved_best_is_read_back` | No file reads as 0. A saved best is read back, and a lower one written later replaces it. The directory is created. |
+| `an_unreadable_file_counts_as_no_best` | A file that holds no number reads as 0, so does no file at all, and saving with no file does nothing. |
 
 ### Rotation
 

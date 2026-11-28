@@ -2,6 +2,7 @@
 name = "polyfall"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
 
 [dependencies]
 # the audio feature needs the ALSA dev headers on Linux

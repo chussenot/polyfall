@@ -164,6 +164,7 @@ when, the `session.sh` that sent them, and `game.log`.
 | `soft` | A soft drop to the floor and its lock. | Staging keys |
 | `pause` | A pause in the middle of the biggest sound, then a resume. | Staging keys |
 | `over` | The lock that ends the game, the ending, a new game during it. | Staging keys |
+| `mute` | A row clear while muted, which must not be heard, then one after unmuting. | Staging keys |
 | `loop` | The theme alone, once round and past its loop point. Then `seam`. | Staging keys |
 
 ### Staging keys

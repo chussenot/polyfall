@@ -122,7 +122,7 @@ fn level(cue: Cue) -> f32 {
         Cue::MoveLeft => 0.32,  // -10 dB
         Cue::MoveRight => 0.32, // -10 dB
         Cue::Rotate => 0.40,    //  -8 dB
-        Cue::Blocked => 0.28,   // -11 dB
+        Cue::Blocked => 0.40,   //  -8 dB: its tap carries it on small speakers
         Cue::Lock => 0.53,      //  -5.5 dB
         Cue::HardDrop => 0.79,  //  -2 dB, for the longest fall
         Cue::Clear1 => 0.35,    //  -9 dB
@@ -365,35 +365,79 @@ impl Desk {
 }
 
 /// The audio device, with every cue loaded. Not tested: it needs a sound card.
+///
+/// A cue that fails to load is left out with a warning, and the game plays on without it: sound
+/// only listens, so nothing in the game may stop for it. `muted` silences everything at once;
+/// the last volume ordered for each cue is kept, so unmuting puts the mix back as it was.
 pub struct Speakers {
-    sounds: Vec<Sound>, // indexed by `Cue as usize`
+    sounds: Vec<Option<Sound>>, // indexed by `Cue as usize`
+    volumes: Vec<f32>,          // the last volume ordered for each cue
+    muted: bool,
 }
 
 impl Speakers {
     pub async fn load() -> Self {
         let mut sounds = Vec::with_capacity(Cue::ALL.len());
         for cue in Cue::ALL {
-            sounds.push(load_sound_from_bytes(cue.bytes()).await.unwrap());
+            match load_sound_from_bytes(cue.bytes()).await {
+                Ok(sound) => sounds.push(Some(sound)),
+                Err(e) => {
+                    eprintln!("polyfall: no sound for {cue:?}: {e:?}");
+                    sounds.push(None);
+                }
+            }
         }
-        Speakers { sounds }
+        Speakers {
+            sounds,
+            volumes: vec![0.0; Cue::ALL.len()],
+            muted: false,
+        }
     }
 
-    pub fn obey(&self, orders: impl Iterator<Item = Order>) {
+    pub fn obey(&mut self, orders: impl Iterator<Item = Order>) {
         for order in orders {
             match order {
                 Order::Play(cue, volume) => self.start(cue, volume, false),
                 Order::Loop(cue, volume) => self.start(cue, volume, true),
-                Order::Volume(cue, volume) => set_sound_volume(&self.sounds[cue as usize], volume),
-                Order::Stop(cue) => stop_sound(&self.sounds[cue as usize]),
+                Order::Volume(cue, volume) => {
+                    self.volumes[cue as usize] = volume;
+                    if let Some(sound) = &self.sounds[cue as usize] {
+                        set_sound_volume(sound, self.heard(volume));
+                    }
+                }
+                Order::Stop(cue) => {
+                    if let Some(sound) = &self.sounds[cue as usize] {
+                        stop_sound(sound);
+                    }
+                }
             }
         }
     }
 
-    fn start(&self, cue: Cue, volume: f32, looped: bool) {
-        play_sound(
-            &self.sounds[cue as usize],
-            PlaySoundParams { looped, volume },
-        );
+    /// Mutes or unmutes every sound, including those already playing.
+    pub fn toggle_mute(&mut self) {
+        self.muted = !self.muted;
+        for cue in Cue::ALL {
+            if let Some(sound) = &self.sounds[cue as usize] {
+                set_sound_volume(sound, self.heard(self.volumes[cue as usize]));
+            }
+        }
+    }
+
+    fn heard(&self, volume: f32) -> f32 {
+        if self.muted {
+            0.0
+        } else {
+            volume
+        }
+    }
+
+    fn start(&mut self, cue: Cue, volume: f32, looped: bool) {
+        self.volumes[cue as usize] = volume;
+        if let Some(sound) = &self.sounds[cue as usize] {
+            let volume = self.heard(volume);
+            play_sound(sound, PlaySoundParams { looped, volume });
+        }
     }
 }
 

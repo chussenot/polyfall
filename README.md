@@ -23,7 +23,7 @@ It exists for short breaks at a desk:
 - **Nothing to learn first.** It starts falling the moment the window opens.
 - **Nothing to lose.** It pauses itself when you stop touching the keyboard, so
   leaving mid-game costs nothing.
-- **Small on purpose.** One window, one keyboard, three source files. A feature has to
+- **Small on purpose.** One window, one keyboard, a handful of source files. A feature has to
   earn its place.
 
 </td>
@@ -31,3 +31,5 @@ It exists for short breaks at a desk:
 </table>
 
 How it works, how to run it and how to change it are in the [documentation](docs/index.md).
+
+Polyfall is released under the [MIT licence](LICENSE).
