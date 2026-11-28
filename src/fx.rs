@@ -91,6 +91,12 @@ fn mix(a: Color, b: Color, t: f32) -> Color {
     )
 }
 
+/// How hard a hard drop of `rows` rows lands, from 0.3 to 1: full strength from 10 rows on.
+/// What is drawn and what is heard are both scaled by it.
+pub fn drop_power(rows: i32) -> f32 {
+    0.3 + 0.7 * (rows as f32 / 10.0).min(1.0)
+}
+
 fn piece_color(color: u8) -> Color {
     COLORS[color as usize - 1]
 }
@@ -309,6 +315,8 @@ impl Fx {
                 self.levelled = 0.0;
             }
             Event::GameOver => self.over = Some(0.0),
+            // heard, not seen: `sound` answers these two
+            Event::Blocked | Event::SoftDropped => {}
         }
     }
 
@@ -328,10 +336,7 @@ impl Fx {
     ) {
         let lively = 1.0 + 0.35 * self.energy;
         let fell = self.fell.take();
-        let power = match fell {
-            None => 0.0,
-            Some(rows) => 0.3 + 0.7 * (rows as f32 / 10.0).min(1.0),
-        };
+        let power = fell.map_or(0.0, drop_power);
         let solid = |x: i32, y: i32| y >= H || before[y as usize][x as usize] != 0;
         // bottom faces of the piece that touch the floor or the stack
         let resting: Vec<(i32, i32)> = cells

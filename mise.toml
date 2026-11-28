@@ -14,11 +14,12 @@ run = "watchexec --restart --exts rs,toml -- cargo run"
 
 [tasks.test]
 description = "Run the game-logic tests (no window needed)"
-run = "cargo test"
+# all features: the staging keys of the sound bench are tested too
+run = "cargo test --all-features"
 
 [tasks.lint]
 description = "Check formatting and lints"
-run = ["cargo fmt --check", "cargo clippy --all-targets -- -D warnings"]
+run = ["cargo fmt --check", "cargo clippy --all-targets --all-features -- -D warnings"]
 
 [tasks.fmt]
 description = "Format the source"
@@ -45,11 +46,25 @@ description = "Capture the running game window to docs/assets/screenshot.png (ne
 run = "import -window Polyfall docs/assets/screenshot.png"
 
 [tasks.audio]
-description = "Render the scores in audio/ to assets/*.ogg (needs sonomorph-render and ffmpeg)"
+description = "Render the scores in audio/ to assets/ (needs sonomorph-render and ffmpeg)"
 # 44100 Hz is the rate macroquad mixes at; any other rate goes through its nearest-neighbour resampler
 run = """
+# music is long: Ogg Vorbis
 for s in theme level_up game_over; do
   sonomorph-render audio/$s.score target/$s.wav 44100
   ffmpeg -y -loglevel error -i target/$s.wav -c:a libvorbis -q:a 5 assets/$s.ogg
 done
+# effects are short, and the soft-drop loop must keep its exact length: WAV, as rendered
+mkdir -p assets/sfx
+for f in audio/sfx/*.score; do
+  sonomorph-render $f assets/sfx/$(basename $f .score).wav 44100
+done
 """
+
+[tasks.sound-check]
+description = "Check the sound files and the room left in the mix (needs python3 with numpy)"
+run = "python3 tools/sound/bench.py check"
+
+[tasks.sound-record]
+description = "Run the game on a virtual sound card, press its keys and check what it played (Linux; see tools/sound/README.md)"
+run = "tools/sound/record.sh --all"

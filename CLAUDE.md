@@ -68,11 +68,19 @@ mise run dev          # run and restart on source changes
 mise run test         # game-logic tests (no window needed)
 mise run check        # lint + tests + docs build; run before a commit
 mise run docs         # serve the documentation locally
+mise run sound-check  # sound files and headroom of the mix; run after changing a sound or a level
+mise run sound-record # record the running game and check what it played (Linux, 3 minutes)
 ```
 
 macroquad is built with its `audio` feature, which needs ALSA dev headers on
-Linux. The sounds in `assets/*.ogg` are rendered from `audio/*.score` by
-`mise run audio` and committed; re-run it after changing a score.
+Linux. The sounds in `assets/` are rendered by `mise run audio` and committed:
+the music from `audio/*.score` to `assets/*.ogg`, the effects from
+`audio/sfx/*.score` to `assets/sfx/*.wav`. Re-run it after changing a score.
+The scores are generated: edit `audio/compose.py` (music) or `audio/sfx.py`
+(effects), not the `.score` files. How loud each sound plays is the `level()`
+table in `src/sound.rs`, times `MASTER`, which leaves the mix its headroom.
+The tools for working on the sound are in `tools/sound` (see its README);
+`cargo run --features stage` adds keys F1 to F8 that set situations up.
 
 ## Architecture Overview
 

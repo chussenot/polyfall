@@ -99,8 +99,8 @@ pieces shown in the side panel.
 ## Falling
 
 `Game::update` adds the frame time to the field `fall`. When `fall` reaches the
-fall interval, `fall` returns to `0.0` and the piece moves down one row. If it
-cannot move down, it locks.
+fall interval, `fall` returns to `0.0` and `Game::descend` moves the piece down
+one row. If it cannot move down, it locks.
 
 | Situation | Fall interval |
 | --- | --- |

@@ -12,7 +12,16 @@ from pathlib import Path
 
 OUT = Path(__file__).parent
 BAR = 12
-TEMPO = 208  # pulses a minute: a bar lasts 3.46 s
+BARS = 29  # the length of the theme (see FORM)
+
+# The theme runs at 208 pulses a minute, give or take 0.02%. The game's mixer works in blocks of
+# 4096 samples at 44100 Hz, and it only loops a sound cleanly when the loop is a whole number of
+# blocks: otherwise the first notes of each pass are played early, on top of the last bar, and
+# leave a hole behind them. So the tempo is the one, nearest to 208, at which 29 bars last
+# exactly 1081 blocks.
+RATE, BLOCK = 44100, 4096
+BLOCKS = round(BARS * BAR * 60 / 208 * RATE / BLOCK)
+TEMPO = BARS * BAR * 60 * RATE / (BLOCKS * BLOCK)  # 207.9618: a bar lasts 3.46 s
 MS = TEMPO / 60000.0  # one millisecond, in beats
 
 NOTES = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
@@ -83,6 +92,8 @@ MELODY = {
           "E5:1 A5:1 G5:1  F5:2 E5:1 D5:1  C#5:1 E5:4"],
 }
 
+LEVEL_UP_TRIM = 2.8  # dB on the cue's master: set so the rendered file peaks near -3 dBFS
+
 TRIMS = {
     "synth_bass": -7, "electronic_pulse": -4, "electronic_metal": 11,
     "brass_horns": 4, "strings_high": 4, "synth_lead": 2,
@@ -135,6 +146,7 @@ def parse(bar):
 def theme():
     s = Score(7)
     bars = [(sec, i, ch) for sec, chords in FORM for i, ch in enumerate(chords)]
+    assert len(bars) == BARS
     # How loud each section plays (0..1). It falls twice: into the break, and at the loop.
     level = {"A": 0.8, "B": 0.78, "A2": 0.85, "BR": 0.5, "C": 1.0}
     for n, (sec, i, ch) in enumerate(bars):
@@ -240,21 +252,38 @@ def theme():
 
 
 def level_up():
-    """One bar: the three cells run upward into D major, the only major tonic in the game."""
+    """The level rises. The three cells run upward once, six times faster than in the theme
+    (the game has just sped up), into an open chord that hangs.
+
+    It plays over the theme, at whatever bar the player happens to be in, so it obeys two rules.
+    It uses only D, E and A: no third, so it cannot be major against a minor bar or the reverse.
+    And it has no pulse of its own: twelve notes in half a second are a gesture, not a rhythm,
+    so they cannot fall out of step with the theme's count.
+
+    It starts a quarter of a second late. A level only rises on a row clear, and the clear is
+    heard first."""
     s = Score(3)
-    for k, p in enumerate(("D3", "A3", "D4")):
-        s.note(k, 0.9, "strings_low_pizz", p, 96, late_ms=5, loose_ms=3)
-    for k, p in enumerate(("F#4", "A4", "D5", "E5")):
-        s.note(3 + k, 0.5, "strings_mid_spic", p, 84, loose_ms=4)
-    for k, p in enumerate(("F#5", "A5", "D6", "E6", "F#6")):
-        s.note(7 + k, 0.7, "synth_glass", p, 80 + 3 * k, late_ms=-4, loose_ms=2)
-    for at, v in ((0, 90), (3, 64), (7, 78)):
-        s.note(at, 0.1, "electronic_metal", "C6", v, wobble=2)
-    for p in ("D3", "A3", "F#4"):
-        s.note(7, 6, "brass_horns", p, 60, wobble=2)
-    s.raw(0, "ramp master.gain 0 0.01 5 5")
-    s.raw(0, "ramp electronic_metal.gain 0 0.01 9 9")
-    head = HEADER.format(title="Polyfall: level up", tempo=TEMPO, length=13, loop="tail 3")
+    beat = TEMPO / 60.0                      # beats in one second
+    start, step = 0.25, 0.042                # seconds
+    run = [("strings_low_pizz", p, 92) for p in ("D3", "A3", "D4")]
+    run += [("strings_mid_spic", p, 86) for p in ("E4", "A4", "D5", "E5")]
+    run += [("synth_glass", p, 82) for p in ("A5", "D6", "E6", "A6", "D7")]
+    for k, (inst, p, vel) in enumerate(run):
+        s.note((start + step * k) * beat, 0.6 * beat, inst, p, vel + 2 * k, loose_ms=2)
+    land = start + step * len(run)           # 0.754 s: the chord arrives as the run ends
+    # horns and strings are slow to speak, so they are asked for a little early
+    for p, vel in (("D3", 100), ("A3", 96), ("E4", 92)):
+        s.note(land * beat, 1.3 * beat, "brass_horns", p, vel, late_ms=-60, wobble=2)
+    for inst, p, vel in (("strings_low", "D3", 88), ("strings_mid", "A3", 80), ("strings_mid", "E4", 78)):
+        s.note(land * beat, 1.7 * beat, inst, p, vel, late_ms=-80, wobble=2)
+    for p, vel in (("D5", 76), ("A5", 72), ("E6", 66)):
+        s.note(land * beat, 0.9 * beat, "synth_glass", p, vel, wobble=2)
+    # a breath of air under the first quarter second, so the cue does not begin with silence
+    s.note(0, 0.9 * beat, "electronic_air", "C5", 80)
+    s.raw(0, f"ramp electronic_air.gain 0 {land * beat:.3f} -8 4 smooth")
+    s.raw(land * beat, f"ramp electronic_air.gain {land * beat:.3f} {(land + 0.5) * beat:.3f} 4 -30 smooth")
+    s.raw(0, f"ramp master.gain 0 0.01 {LEVEL_UP_TRIM} {LEVEL_UP_TRIM}")
+    head = HEADER.format(title="Polyfall: level up", tempo=TEMPO, length=round(2.7 * beat, 2), loop="tail 1.6")
     (OUT / "level_up.score").write_text(head + s.text())
 
 

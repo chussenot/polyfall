@@ -4,6 +4,7 @@ description: What Polyfall is, the terms this documentation uses, and the order 
 source:
   - src/main.rs
   - src/fx.rs
+  - src/sound.rs
   - PRODUCT.md
 ---
 
@@ -13,8 +14,8 @@ This page says what the program is and where to go next. Start here if you are
 new to the code.
 
 Polyfall is a single-player falling-block puzzle game for a desktop window. It
-is written in Rust with the macroquad 0.4 library. The game and its unit tests are in `src/main.rs`. The visual effects, with
-their own tests, are in `src/fx.rs`.
+is written in Rust with the macroquad 0.4 library. The game and its unit tests are in `src/main.rs`. The visual effects are in
+`src/fx.rs` and the sound in `src/sound.rs`, each with its own tests.
 
 ![Polyfall: a piece falling into the well, with the two upcoming pieces shown in the side panel](assets/screenshot.png)
 
@@ -26,6 +27,8 @@ The player moves and rotates the falling piece with the keyboard. When the piece
 can fall no further it locks into the well. Every full row is then removed and
 scores points. Every 10 cleared rows raise the level, and each level makes
 pieces fall faster. The game ends when a new piece has no room to appear.
+
+A theme plays while the game runs, and every action of the player has a sound.
 
 The game pauses on P, and pauses itself after 8 seconds without a key. Nothing
 is saved. There is no network access and no file access.
@@ -64,6 +67,7 @@ Read the other reference pages when you need them:
 | [Rotation and kicks](reference/rotation-and-kicks.md) | How a piece turns and when a turn is refused. |
 | [Rendering and layout](reference/rendering-and-layout.md) | Where and in what colour each thing is drawn. |
 | [Effects](reference/effects.md) | What moves, lights up or breaks apart when something happens, for how long, and why it cannot change the game. |
+| [Sound](reference/sound.md) | What is heard when something happens, how loud, and what the theme does meanwhile. |
 | [Game state](reference/game-state.md) | What a field of `Game` or `Piece` means and which functions change it. |
 | [Tests](reference/tests.md) | What the tests prove and what has no test. |
 | [Limits and edge cases](reference/limits.md) | Where the game behaves in a way you might not expect. |

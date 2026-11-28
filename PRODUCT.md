@@ -41,10 +41,12 @@ adapting to it. Random pieces are the identity of the game, not a side feature.
 - Score is rows cleared at once, squared, times 100; level rises every 10 rows.
 - Pause on P, automatic pause after 8 seconds without a key press, key repeat for
   held Left/Right.
-- A looping theme, a level-up cue and a game-over cue, composed in `audio/`. No sound effects
-  and no saved high scores today.
-- Two source files: the game in `src/main.rs`, its visual effects in `src/fx.rs`. macroquad 0.4 with its audio feature, which
-  needs the ALSA headers to build on Linux.
+- A looping theme, a level-up cue and a game-over cue, and a sound for every action of the
+  player: move, rotate, a blocked move, soft drop, lock, hard drop, row clears of 1 to 5 rows,
+  pause, resume and new game. All composed in `audio/`. No saved high scores today.
+- Three source files: the game in `src/main.rs`, its visual effects in `src/fx.rs`, its sound in `src/sound.rs`. macroquad 0.4 with its audio feature, which
+  needs the ALSA headers to build on Linux. A fourth file, `src/stage.rs`, is compiled only for the
+  sound bench in `tools/sound` and is not in the game as shipped.
 - It is an original game in the falling-block genre. It must not copy the name,
   piece set, look or music of any existing game.
 
@@ -57,7 +59,9 @@ adapting to it. Random pieces are the identity of the game, not a side feature.
 - The running game and its unit tests in `src/`; reverse documentation in `docs/`.
 - One screenshot at `docs/assets/screenshot.png`.
 - Three music scores in `audio/`, with their arrangement spec, rendered to `assets/*.ogg` and played by the game.
-- No logo, art, sound effects or player feedback exist; none should be invented.
+- Fifteen sound-effect scores in `audio/sfx/`, rendered to `assets/sfx/*.wav` and played by the game.
+  Their levels were set from measurements; nobody has tuned them by ear yet.
+- No logo, art or player feedback exist; none should be invented.
 
 ## Product Principles
 
