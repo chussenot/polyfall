@@ -43,7 +43,7 @@ the free functions `random_piece`, `draw_piece`, `conf` and `main`, and the
 ## macroquad
 
 macroquad is the only direct dependency. The game imports it with
-`use macroquad::prelude::*` and uses it for five jobs:
+`use macroquad::prelude::*` and uses it for six jobs:
 
 | Job | Calls in the code |
 | --- | --- |
@@ -52,9 +52,10 @@ macroquad is the only direct dependency. The game imports it with
 | Time | `get_frame_time`, `macroquad::miniquad::date::now` |
 | Random numbers | `rand::srand`, `rand::gen_range` |
 | Drawing | `set_camera`, `Camera2D::from_display_rect`, `Rect`, `Color`, `clear_background`, `draw_rectangle`, `draw_rectangle_ex`, `draw_rectangle_lines`, `draw_text`, `measure_text` |
+| Sound | `load_sound_from_bytes`, `play_sound`, `play_sound_once`, `stop_sound`, `set_sound_volume`, `PlaySoundParams`, from `macroquad::audio` |
 
-macroquad is built without its default features, which removes audio.
-[Development](../development.md#audio-is-disabled) gives the reason.
+macroquad is built with its `audio` feature. [Development](../development.md#audio)
+says what that needs and where the sounds come from.
 
 The game loads no font. `draw_text` and `measure_text` use the font built into
 macroquad.
@@ -63,9 +64,8 @@ macroquad.
 
 | Absent | Evidence in the source |
 | --- | --- |
-| Files | No `std::fs` call, no path, no asset loading. |
+| Files | No `std::fs` call and no path. The three sounds in `assets/` are compiled into the binary with `include_bytes!`. |
 | Network | No socket or HTTP call, and no networking crate in `Cargo.lock`. |
-| Audio | No sound call, and macroquad is built without its audio feature. |
 | Configuration | No command-line argument, environment variable or settings file is read. Every tuning value is a `const` or a literal in the code. |
 | Threads and background work | `main` is `async` because macroquad requires it. Its only `await` is `next_frame()`. |
 | Other input devices | No mouse, touch or gamepad call. |

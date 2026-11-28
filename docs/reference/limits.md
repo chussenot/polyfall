@@ -66,5 +66,5 @@ also lists the other limits of rotation.
 code: a well of 12 by 22, pieces of 3 to 5 cells coloured by cell count, two
 upcoming pieces, a landing outline, a score of rows squared times 100, a level
 every 10 rows, pause on P, an automatic pause after 8 seconds, key repeat for
-Left and Right, R only when paused or over, no sound, no saved scores, one
-source file, and macroquad 0.4 with audio disabled.
+Left and Right, R only when paused or over, no saved scores, one
+source file, and macroquad 0.4.

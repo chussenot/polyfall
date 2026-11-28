@@ -43,3 +43,13 @@ run = "mkdocs build --strict"
 [tasks.screenshot]
 description = "Capture the running game window to docs/assets/screenshot.png (needs ImageMagick and X11/XWayland)"
 run = "import -window Polyfall docs/assets/screenshot.png"
+
+[tasks.audio]
+description = "Render the scores in audio/ to assets/*.ogg (needs sonomorph-render and ffmpeg)"
+# 44100 Hz is the rate macroquad mixes at; any other rate goes through its nearest-neighbour resampler
+run = """
+for s in theme level_up game_over; do
+  sonomorph-render audio/$s.score target/$s.wav 44100
+  ffmpeg -y -loglevel error -i target/$s.wav -c:a libvorbis -q:a 5 assets/$s.ogg
+done
+"""

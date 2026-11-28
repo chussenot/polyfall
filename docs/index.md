@@ -28,7 +28,7 @@ scores points. Every 10 cleared rows raise the level, and each level makes
 pieces fall faster. The game ends when a new piece has no room to appear.
 
 The game pauses on P, and pauses itself after 8 seconds without a key. Nothing
-is saved. There is no sound, no network access and no file access.
+is saved. There is no network access and no file access.
 
 ## Terms
 

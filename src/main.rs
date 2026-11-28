@@ -1,3 +1,7 @@
+use macroquad::audio::{
+    load_sound_from_bytes, play_sound, play_sound_once, set_sound_volume, stop_sound,
+    PlaySoundParams,
+};
 use macroquad::prelude::*;
 
 mod fx;
@@ -528,10 +532,36 @@ async fn main() {
     rand::srand(macroquad::miniquad::date::now() as u64);
     let mut game = Game::new();
     let mut fx = Fx::default();
+    // rendered from audio/*.score by `mise run audio`
+    let [theme, level_up, game_over] = [
+        &include_bytes!("../assets/theme.ogg")[..],
+        include_bytes!("../assets/level_up.ogg"),
+        include_bytes!("../assets/game_over.ogg"),
+    ]
+    .map(load_sound_from_bytes);
+    let (theme, level_up, game_over) = (
+        theme.await.unwrap(),
+        level_up.await.unwrap(),
+        game_over.await.unwrap(),
+    );
+    let start = || {
+        let looped = PlaySoundParams {
+            looped: true,
+            volume: 1.0,
+        };
+        play_sound(&theme, looped);
+    };
+    start();
+    let mut muted = false;
     loop {
         if is_key_pressed(KeyCode::R) && game.can_restart() {
             game = Game::new();
             fx = Fx::default();
+            for sound in [&theme, &level_up, &game_over] {
+                stop_sound(sound);
+            }
+            start();
+            muted = false;
         }
         if is_key_pressed(KeyCode::P) && !game.over {
             game.paused = !game.paused;
@@ -540,9 +570,22 @@ async fn main() {
         if !game.over && !game.paused {
             game.update();
         }
-        // effects only listen: they take what happened and never hand anything back
+        // effects and sound only listen: they take what happened and never hand anything back
         for event in game.events.drain(..) {
+            match event {
+                Event::LevelUp { .. } => play_sound_once(&level_up),
+                Event::GameOver => {
+                    stop_sound(&theme);
+                    play_sound_once(&game_over);
+                }
+                _ => {}
+            }
             fx.on(event);
+        }
+        // macroquad cannot pause one sound, so a pause mutes the theme and it plays on unheard
+        if muted != game.paused {
+            muted = game.paused;
+            set_sound_volume(&theme, if muted { 0.0 } else { 1.0 });
         }
         if !game.paused {
             fx.tick(get_frame_time()); // a pause freezes effects with the game; the end does not

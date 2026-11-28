@@ -4,5 +4,5 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-# default features only add audio, which needs ALSA dev headers to build
-macroquad = { version = "0.4", default-features = false }
+# the audio feature needs the ALSA dev headers on Linux
+macroquad = { version = "0.4", features = ["audio"] }

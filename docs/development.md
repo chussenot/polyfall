@@ -50,6 +50,7 @@ Run a task with `mise run <task>`.
 | `docs` | `mkdocs serve` | Serves this documentation locally and reloads the page when a file changes. |
 | `docs-build` | `mkdocs build --strict` | Builds the documentation into `site/` and fails on any warning, such as a broken link. |
 | `check` | `lint`, `test` and `docs-build` | Everything that must pass before a commit. |
+| `audio` | `sonomorph-render`, then `ffmpeg`, for each score | Renders the scores in `audio/` to `assets/*.ogg`. Needs `sonomorph-render` and ffmpeg. |
 | `screenshot` | `import -window Polyfall docs/assets/screenshot.png` | Captures the running game window to `docs/assets/screenshot.png`. Needs ImageMagick and X11 or XWayland, and the game must be running. |
 
 A usual working session:
@@ -60,18 +61,21 @@ A usual working session:
 
 ## Facts to know
 
-### Audio is disabled
+### Audio
 
 `Cargo.toml` declares one dependency:
 
 ```toml
-macroquad = { version = "0.4", default-features = false }
+macroquad = { version = "0.4", features = ["audio"] }
 ```
 
-The only default feature of macroquad is audio. Audio needs the ALSA development
-headers to build on Linux. With default features off, the game builds without
-them. The game has no sound. To add sound, turn the default features back on in
-`Cargo.toml` and install the ALSA headers.
+The `audio` feature needs the ALSA development headers to build on Linux.
+
+The game plays three sounds from `assets/*.ogg`, compiled into the binary with
+`include_bytes!`. `mise run audio` renders them from the scores in `audio/`; it
+needs `sonomorph-render` and ffmpeg, and `audio/README.md` says how to install
+the first. The files are rendered at 44100 Hz because macroquad mixes at that
+rate and resamples anything else by nearest neighbour.
 
 ### Tests run without a window
 
@@ -122,5 +126,5 @@ built, and the game code does not refer to it.
 ### Two source files
 
 The game and its tests are in `src/main.rs`. The visual effects and their tests
-are in `src/fx.rs`, the only module. There are no assets and no configuration
-files. [Components](architecture/components.md) maps both files.
+are in `src/fx.rs`, the only module. The only assets are the three sounds in
+`assets/`, and there are no configuration files. [Components](architecture/components.md) maps both files.

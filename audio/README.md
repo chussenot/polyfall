@@ -1,7 +1,7 @@
 # Polyfall music
 
 Three scores for [sonomorph](https://github.com/chussenot/sonomorph)'s advanced engine.
-The game does not play them yet: see "Not wired in" below.
+The game plays them from `assets/*.ogg`: see "In the game" below.
 
 | Score | What | Length |
 | --- | --- | --- |
@@ -46,18 +46,22 @@ It needs only Python 3 and always writes the same files (fixed seed). Commit
 
 ```bash
 cargo install --git https://github.com/chussenot/sonomorph \
-  --features render,render-advanced sonomorph-render
+  --features render,render-advanced --bin sonomorph-render sonomorph
 sonomorph-render audio/theme.score theme.wav
 ```
 
 This needs a C compiler. The theme renders in about 8 seconds.
 
-## Not wired in
+## In the game
 
-Playing these in the game means adding sonomorph as a dependency: a build
-script that renders the scores, and its `output` feature, which needs the ALSA
-headers on Linux. That is the reason `Cargo.toml` builds macroquad without
-audio today, so it is a separate decision.
+`mise run audio` renders the three scores at 44100 Hz and encodes them to
+`assets/*.ogg` with ffmpeg. Those files are committed and compiled into the
+binary, so building the game needs neither sonomorph nor ffmpeg. Run the task
+again after changing a score.
+
+The theme loops while a game is in play and is muted during a pause. The
+level-up cue plays over it. The game-over cue replaces it until R starts a new
+game.
 
 ## Licence of the sounds
 

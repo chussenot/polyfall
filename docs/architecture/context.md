@@ -56,6 +56,6 @@ All other `Conf` fields keep their default values.
 
 ## What does not exist
 
-The source has no mouse, touch or gamepad call, no file call, no network call
-and no audio call. The player has no name or account. Score and game state live
+The source has no mouse, touch or gamepad call, no file call and no network
+call. The player has no name or account. Score and game state live
 in memory and are lost when the window closes.

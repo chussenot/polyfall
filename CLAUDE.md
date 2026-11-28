@@ -70,8 +70,9 @@ mise run check        # lint + tests + docs build; run before a commit
 mise run docs         # serve the documentation locally
 ```
 
-macroquad is built with default features off: the only default is audio, which
-needs ALSA dev headers. Turn it back on in `Cargo.toml` if sound is added.
+macroquad is built with its `audio` feature, which needs ALSA dev headers on
+Linux. The sounds in `assets/*.ogg` are rendered from `audio/*.score` by
+`mise run audio` and committed; re-run it after changing a score.
 
 ## Architecture Overview
 
