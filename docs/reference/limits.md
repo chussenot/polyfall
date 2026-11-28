@@ -10,6 +10,9 @@ source:
   - Game::draw_panel
   - Game::draw_overlay
   - main
+  - Desk::on
+  - Speakers::obey
+  - level
   - PRODUCT.md
 ---
 
@@ -53,6 +56,15 @@ also lists the other limits of rotation.
 | For up to about `0.4` s after rows are removed, the stack is drawn higher than it is while the rows come down. Collision and the landing outline use the real well. More limits of the effects are on [Effects](effects.md#limits). | `Fx::block` |
 | `Game::events` is emptied only by `main`. Code that drives a `Game` without that loop, as the tests do, lets it grow. | `main` |
 
+## Sound
+
+| Behaviour | Cause |
+| --- | --- |
+| A sound starts up to 93 ms after the event that caused it, on top of the delay of the sound card. macroquad's mixer starts sounds only at the beginning of a block of 4096 samples. | `Speakers::obey` |
+| The levels of the sounds were set from measurements, not by ear. More limits of the sound are on [Sound](sound.md#limits). | `level` |
+| A piece that falls by itself makes no sound until it locks. Only rows fallen with Down held are heard. | `Desk::on` |
+| A held Left or Right that keeps pushing at a wall is silent. Only the press itself is answered when it cannot move. | `Game::sidestep` |
+
 ## Other
 
 | Behaviour | Cause |
@@ -66,5 +78,5 @@ also lists the other limits of rotation.
 code: a well of 12 by 22, pieces of 3 to 5 cells coloured by cell count, two
 upcoming pieces, a landing outline, a score of rows squared times 100, a level
 every 10 rows, pause on P, an automatic pause after 8 seconds, key repeat for
-Left and Right, R only when paused or over, no saved scores, one
-source file, and macroquad 0.4.
+Left and Right, R only when paused or over, a theme and sound effects, no
+saved scores, three source files, and macroquad 0.4.

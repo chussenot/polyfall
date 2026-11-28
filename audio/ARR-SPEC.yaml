@@ -14,7 +14,7 @@ meta:
   mode: dorian
   meter: "12/8"
   meter_note: "Every bar is 12 eighth pulses grouped 3 + 4 + 5, never 3 + 3 + 3 + 3."
-  tempo: 208            # eighth pulses a minute; a bar lasts 3.46 s
+  tempo: 208            # eighth pulses a minute; a bar lasts 3.46 s. Rendered at 207.96: the loop must last a whole number of mixer blocks (see compose.py)
   target_duration: "1:40"
   deliverable: [full_mix]
   upstream:
@@ -126,6 +126,7 @@ measured:   # theme.wav, 48 kHz stereo, rendered by sonomorph-render on this mac
   rms_dBFS: -21.0
   section_rms_dBFS: {A: -22.9, B: -21.7, A2: -21.1, BR: -25.6, C: -18.1}
   loop_seam: "the jump across the seam is smaller than the 99th percentile of ordinary sample-to-sample steps"
+  loop_in_game: "recorded from the running game across the loop point: at 1081 mixer blocks the next pass begins sample-exact; at the first length (1080 blocks and 3282 frames) its first 18.5 ms played 74 ms early and left a hole"
 
 checks:
   self_audit:

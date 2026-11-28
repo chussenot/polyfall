@@ -68,12 +68,14 @@ macroquad's generator, so effects do not change which pieces come next.
 ## Events
 
 `Event` is declared in `src/main.rs`. `src/fx.rs` holds everything else on this
-page.
+page. The same events drive the [sound](sound.md).
 
 | Event | Pushed by | When | Carries |
 | --- | --- | --- | --- |
 | `Moved` | `Game::shift` | The piece moved: a key, a repeat move or one row of falling. Not when the move was refused. | `dx`, `dy` in cells. |
 | `Rotated` | `Game::rotate` | The piece turned. Not when the turn was refused. | The kick, `dx` and `dy` in cells. |
+| `Blocked` | `Game::sidestep`, `Game::rotate` | A key press asked for a sideways move or a turn that had no room. Not for a held key that keeps pushing at a wall. | Nothing. |
+| `SoftDropped` | `Game::descend` | The row the piece has just fallen, already reported by `Moved`, fell with Down held. | Nothing. |
 | `HardDropped` | `Game::hard_drop` | Space. `Locked` always follows. | `rows`: how far the piece dropped. |
 | `Locked` | `Game::lock` | The piece became part of the stack. | Its `cells` in the well, its `color`, the rows `cleared`, the well `before` those rows were removed, and the `points` gained. |
 | `LevelUp` | `Game::lock` | The lock raised the level. | The new `level`, counted from 0. |
@@ -82,6 +84,8 @@ page.
 `Locked` carries the well as it was with the piece in it and the full rows
 still there. The effects need it to draw the removed rows and to find which
 cells the piece came to rest on.
+
+`Blocked` and `SoftDropped` start no effect. They are heard, not seen.
 
 ## What each event starts
 

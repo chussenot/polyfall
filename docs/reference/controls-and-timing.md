@@ -10,6 +10,7 @@ source:
   - REPEAT_DELAY
   - REPEAT_RATE
   - IDLE_PAUSE
+  - src/stage.rs
 ---
 
 # Controls and timing
@@ -23,9 +24,9 @@ The program reads seven keys. They cannot be remapped.
 
 | Key | Action | Active when | Read in |
 | --- | --- | --- | --- |
-| Left, Right | Move the piece one column. Repeats while held. | Playing | `Game::update` |
+| Left, Right | Move the piece one column. Repeats while held. | Playing | `Game::update`, `Game::sidestep` |
 | Up | Rotate the piece once. | Playing | `Game::update` |
-| Down | Soft drop: while held, the fall interval is `0.04` s. | Playing | `Game::update` |
+| Down | Soft drop: while held, the fall interval is `0.04` s. | Playing | `Game::update`, `Game::descend` |
 | Space | Hard drop: move the piece down until it stops, and lock it. | Playing | `Game::update`, `Game::hard_drop` |
 | P | Pause or resume. | Not over | `main` |
 | R | Start a new game. | Over or paused | `main` |
@@ -34,7 +35,28 @@ The program reads seven keys. They cannot be remapped.
 then, so a key pressed while the game is paused or over is not kept for later.
 
 Up and Space act once per press; holding them does nothing more. A move or a
-rotation that does not fit is ignored without any sign to the player.
+rotation that does not fit is refused: nothing moves on screen, and a low knock
+is heard. See [Sound](sound.md#the-cue-sheet). A held key that keeps pushing at
+a wall is silent.
+
+### Staging keys
+
+Built with `--features stage`, the game reads eight more keys while playing.
+Each sets up a situation that random pieces would take minutes to produce.
+What happens next is ordinary play. The game as shipped does not have them: the
+feature is off by default.
+
+| Key | Sets up |
+| --- | --- |
+| F1 to F5 | Rows about to clear, and a straight piece over the gap. A hard drop removes 1 to 5 rows. |
+| F6 | A row count one short of the next level. |
+| F7 | A well filled to the brim. The next lock ends the game. |
+| F8 | An empty well, the piece back on its top row. |
+
+They exist for the sound bench, which presses them and records what is heard,
+and for trying a sound or an effect by hand: `cargo run --features stage`, then
+F4 and Space. The code is `src/stage.rs`. See
+[Development](../development.md#the-sound-bench).
 
 ## Left and Right
 
@@ -151,4 +173,6 @@ The fall intervals per level are on [Game rules](game-rules.md#level-and-speed).
 `GLOW` and `GLOW_FADE` are explained on
 [Rendering and layout](rendering-and-layout.md#level-highlight). The durations
 of all other effects are constants in `src/fx.rs`, listed on
-[Effects](effects.md). No effect delays a key or a rule.
+[Effects](effects.md). The timings of the sound are constants in
+`src/sound.rs`, listed on [Sound](sound.md#rules-of-the-desk). No effect and
+no sound delays a key or a rule.

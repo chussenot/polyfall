@@ -13,11 +13,12 @@ source:
 This page shows Polyfall from the outside: who uses it and what it exchanges
 with the rest of the machine. Read it first to learn the limits of the program.
 
-Polyfall has one user, the player, and two things it needs from the operating
-system: a keyboard to read and a window to draw in.
+Polyfall has one user, the player, and three things it needs from the operating
+system: a keyboard to read, a window to draw in and a sound card to play
+through.
 
-The diagram shows the only path through the program: keys go in, frames come
-out.
+The diagram shows the only path through the program: keys go in, frames and
+sound come out.
 
 ```mermaid
 flowchart LR
@@ -29,6 +30,9 @@ flowchart LR
     Keyboard -->|"key state"| Game
     Game -->|"draws frames"| Window
     Window -->|"shows the game"| Player
+    Speakers["Sound card"]
+    Game -->|"plays sounds"| Speakers
+    Speakers -->|"is heard"| Player
 ```
 
 ## What goes in
@@ -42,7 +46,8 @@ flowchart LR
 
 ## What comes out
 
-Drawn frames in one window, and nothing else. `conf()` describes the window:
+Drawn frames in one window, and sound. [Sound](../reference/sound.md) lists what
+is played. `conf()` describes the window:
 
 | `Conf` field | Value |
 | --- | --- |

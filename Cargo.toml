@@ -6,3 +6,13 @@ edition = "2021"
 [dependencies]
 # the audio feature needs the ALSA dev headers on Linux
 macroquad = { version = "0.4", features = ["audio"] }
+
+[features]
+# F1 to F8 set up situations (rows about to clear, a full well) for the sound bench in tools/sound
+# and for trying things by hand: `cargo run --features stage`. Off in the game as shipped.
+stage = []
+
+[dev-dependencies]
+# examples/decode.rs reads a sound file exactly as macroquad's mixer does: same crate, same
+# features. It is already in the lock file through macroquad, so this adds nothing to build.
+audrey = { version = "0.3", default-features = false, features = ["ogg_vorbis", "wav"] }

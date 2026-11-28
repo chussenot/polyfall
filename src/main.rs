@@ -1,11 +1,11 @@
-use macroquad::audio::{
-    load_sound_from_bytes, play_sound, play_sound_once, set_sound_volume, stop_sound,
-    PlaySoundParams,
-};
 use macroquad::prelude::*;
 
 mod fx;
+mod sound;
+#[cfg(feature = "stage")]
+mod stage;
 use fx::{alpha, ease_out, Fx};
+use sound::{Desk, Speakers};
 
 const W: i32 = 12;
 const H: i32 = 22;
@@ -30,14 +30,18 @@ const LANDING_ALPHA: f32 = 0.5;
 
 type Grid = [[u8; W as usize]; H as usize];
 
-/// Something that happened in the game, for the effects in `fx` to react to.
-/// Events only describe; no game rule reads them.
+/// Something that happened in the game, for the effects in `fx` and the sound in `sound` to
+/// react to. Events only describe; no game rule reads them.
 #[derive(Debug, Clone, PartialEq)]
 enum Event {
     /// The falling piece moved by this many cells: a key, a repeat, or one row of falling.
     Moved { dx: i32, dy: i32 },
     /// The falling piece made a quarter turn, and was kicked by this many cells to fit.
     Rotated { dx: i32, dy: i32 },
+    /// A key press asked for a sideways move or a turn that had no room. Nothing moved.
+    Blocked,
+    /// The row the piece has just fallen (reported by `Moved`) was the player's doing: Down is held.
+    SoftDropped,
     /// The falling piece was dropped this many rows at once. `Locked` always follows.
     HardDropped { rows: i32 },
     /// The falling piece became part of the stack.
@@ -173,6 +177,25 @@ impl Game {
                 return;
             }
         }
+        self.events.push(Event::Blocked);
+    }
+
+    /// One column sideways, asked for by a key press. A press that cannot move is reported, so
+    /// the key is answered either way; a held key that keeps pushing at a wall is not.
+    fn sidestep(&mut self, dx: i32) {
+        if !self.shift(dx, 0) {
+            self.events.push(Event::Blocked);
+        }
+    }
+
+    /// One row down, or the lock if the piece rests on something. `soft` says the player is
+    /// holding Down, which makes the row theirs and not gravity's.
+    fn descend(&mut self, soft: bool) {
+        if !self.shift(0, 1) {
+            self.lock();
+        } else if soft {
+            self.events.push(Event::SoftDropped);
+        }
     }
 
     /// Drops the piece straight to its landing row and locks it there.
@@ -269,7 +292,7 @@ impl Game {
         let down = is_key_down(KeyCode::Right) as i32 - is_key_down(KeyCode::Left) as i32;
         if pressed != 0 {
             self.held = 0.0;
-            self.shift(pressed, 0);
+            self.sidestep(pressed);
         } else if down != 0 {
             let held = self.held + get_frame_time();
             for _ in 0..Self::repeats(self.held, held) {
@@ -285,16 +308,15 @@ impl Game {
             return;
         }
         self.fall += get_frame_time();
-        let interval = if is_key_down(KeyCode::Down) {
+        let soft = is_key_down(KeyCode::Down);
+        let interval = if soft {
             0.04
         } else {
             (0.6 - 0.05 * self.level() as f32).max(0.08)
         };
         if self.fall >= interval {
             self.fall = 0.0;
-            if !self.shift(0, 1) {
-                self.lock();
-            }
+            self.descend(soft);
         }
     }
 
@@ -532,61 +554,31 @@ async fn main() {
     rand::srand(macroquad::miniquad::date::now() as u64);
     let mut game = Game::new();
     let mut fx = Fx::default();
-    // rendered from audio/*.score by `mise run audio`
-    let [theme, level_up, game_over] = [
-        &include_bytes!("../assets/theme.ogg")[..],
-        include_bytes!("../assets/level_up.ogg"),
-        include_bytes!("../assets/game_over.ogg"),
-    ]
-    .map(load_sound_from_bytes);
-    let (theme, level_up, game_over) = (
-        theme.await.unwrap(),
-        level_up.await.unwrap(),
-        game_over.await.unwrap(),
-    );
-    let start = || {
-        let looped = PlaySoundParams {
-            looped: true,
-            volume: 1.0,
-        };
-        play_sound(&theme, looped);
-    };
-    start();
-    let mut muted = false;
+    let speakers = Speakers::load().await;
+    let mut desk = Desk::new(); // its first order starts the theme
     loop {
         if is_key_pressed(KeyCode::R) && game.can_restart() {
             game = Game::new();
             fx = Fx::default();
-            for sound in [&theme, &level_up, &game_over] {
-                stop_sound(sound);
-            }
-            start();
-            muted = false;
+            desk.restart();
         }
         if is_key_pressed(KeyCode::P) && !game.over {
             game.paused = !game.paused;
         }
         game.tick_idle(get_frame_time(), !get_keys_down().is_empty());
         if !game.over && !game.paused {
+            #[cfg(feature = "stage")]
+            stage::keys(&mut game);
             game.update();
         }
         // effects and sound only listen: they take what happened and never hand anything back
         for event in game.events.drain(..) {
-            match event {
-                Event::LevelUp { .. } => play_sound_once(&level_up),
-                Event::GameOver => {
-                    stop_sound(&theme);
-                    play_sound_once(&game_over);
-                }
-                _ => {}
-            }
+            desk.on(&event);
             fx.on(event);
         }
-        // macroquad cannot pause one sound, so a pause mutes the theme and it plays on unheard
-        if muted != game.paused {
-            muted = game.paused;
-            set_sound_volume(&theme, if muted { 0.0 } else { 1.0 });
-        }
+        // sound runs through a pause, unlike effects: that is when the music fades out and back
+        desk.frame(game.paused, get_frame_time());
+        speakers.obey(desk.orders());
         if !game.paused {
             fx.tick(get_frame_time()); // a pause freezes effects with the game; the end does not
         }
@@ -765,6 +757,61 @@ mod tests {
                 Event::Rotated { dx: 2, dy: 0 },
             ]
         );
+    }
+
+    #[test]
+    fn a_key_press_that_cannot_move_is_reported() {
+        let mut g = Game::new();
+        g.piece = Piece {
+            cells: vec![(0, 0), (0, 1)],
+            x: 0,
+            y: 10,
+            color: 1,
+        };
+        g.sidestep(-1); // the wall
+        assert_eq!(g.events, vec![Event::Blocked]);
+        g.events.clear();
+        g.sidestep(1);
+        assert_eq!(g.events, vec![Event::Moved { dx: 1, dy: 0 }]);
+
+        // a turn with no room: in a one-cell shaft between two columns
+        let mut g = Game::new();
+        for row in &mut g.grid[9..=12] {
+            row[4] = 1;
+            row[6] = 1;
+        }
+        g.piece = Piece {
+            cells: vec![(0, 0), (0, 1)],
+            x: 5,
+            y: 10,
+            color: 1,
+        };
+        g.rotate();
+        assert_eq!(g.events, vec![Event::Blocked]);
+    }
+
+    #[test]
+    fn only_a_row_fallen_with_down_held_is_a_soft_drop() {
+        let mut g = Game::new();
+        g.piece = Piece {
+            cells: vec![(0, 0)],
+            x: 3,
+            y: H - 3,
+            color: 1,
+        };
+        g.descend(false); // gravity
+        assert_eq!(g.events, vec![Event::Moved { dx: 0, dy: 1 }]);
+        g.events.clear();
+        g.descend(true);
+        assert_eq!(
+            g.events,
+            vec![Event::Moved { dx: 0, dy: 1 }, Event::SoftDropped]
+        );
+        // on the floor now: the next step locks, and a lock is not a soft-drop row
+        g.events.clear();
+        g.descend(true);
+        assert!(matches!(&g.events[..], [Event::Locked { .. }]));
+        assert_eq!(g.grid[H as usize - 1][3], 1);
     }
 
     #[test]

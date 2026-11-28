@@ -1,6 +1,6 @@
 ---
 title: Tests
-description: What each of the 31 unit tests in src/main.rs and src/fx.rs proves, and which behaviour has no test.
+description: What each of the 50 unit tests in src/main.rs, src/fx.rs, src/sound.rs and src/stage.rs proves, and which behaviour has no test.
 source:
   - tests::random_pieces_spawn_inside_the_well
   - tests::landing_row_stops_on_the_stack_or_the_floor
@@ -12,7 +12,11 @@ source:
   - tests::moves_and_turns_are_reported_only_when_they_happen
   - tests::hard_drop_lands_where_the_outline_was_and_reports_the_distance
   - tests::the_end_of_the_game_is_reported_once_after_the_last_lock
+  - tests::a_key_press_that_cannot_move_is_reported
+  - tests::only_a_row_fallen_with_down_held_is_a_soft_drop
   - src/fx.rs
+  - src/sound.rs
+  - src/stage.rs
   - tests::lock_shifts_the_two_upcoming_pieces
   - tests::four_turns_restore_the_piece
   - tests::rotation_kicks_off_walls_but_not_over_the_stack
@@ -29,9 +33,13 @@ you change game logic, to know whether a test will catch a mistake.
 
 ## How the tests work
 
-There are 31 tests: 17 for the game in the `tests` module at the end of
-`src/main.rs`, and 14 for the effects in the `tests` module at the end of
-`src/fx.rs`. Run them with `mise run test`. They open no window. Each test builds a `Game`, sets
+There are 50 tests: 19 for the game in the `tests` module at the end of
+`src/main.rs`, 14 for the effects in the `tests` module at the end of
+`src/fx.rs`, 13 for the sound in the `tests` module at the end of
+`src/sound.rs`, and 4 for the staging keys in `src/stage.rs`. Run them with
+`mise run test`, which is `cargo test --all-features`: plain `cargo test`
+leaves the staging keys out and runs 46. They open no window and play no
+sound. Each test builds a `Game`, sets
 fields by hand to create a situation, calls one function and checks the result.
 
 Functions that read the keyboard or draw cannot be tested this way.
@@ -76,6 +84,9 @@ cases.
 | --- | --- | --- |
 | `moves_and_turns_are_reported_only_when_they_happen` | `Game::shift`, `Game::rotate` | A move refused by the wall pushes nothing. A sideways move, a move down and a kicked turn push `Moved` and `Rotated` with the right distances, in order. |
 
+| `a_key_press_that_cannot_move_is_reported` | `Game::sidestep`, `Game::rotate` | A press against the wall pushes `Blocked` and nothing else. A press with room pushes `Moved`. A turn with no room pushes `Blocked`. |
+| `only_a_row_fallen_with_down_held_is_a_soft_drop` | `Game::descend` | A row fallen by gravity pushes `Moved` alone. A row fallen with Down held pushes `Moved`, then `SoftDropped`. A piece on the floor locks instead, and a lock is not a soft drop. |
+
 ### Input and timing
 
 | Test | Function tested | What it proves |
@@ -107,14 +118,53 @@ tuning values. [Effects](effects.md) describes what they test.
 | `the_end_is_held_then_dimmed_from_the_top_down` | Nothing dims during the hold. Then the top row is darker than the bottom row before the box appears, and all end fully shown. With no event, the overlay is fully shown. |
 | `levels_raise_the_energy_up_to_a_ceiling` | `LevelUp` restarts the level effect and sets the energy to a tenth of the level, at most 1. |
 
+### Sound
+
+These tests are in `src/sound.rs`. They feed events to a `Desk`, advance it with
+`Desk::frame` and check the orders it writes. No sound card is involved. They
+check behaviour, not exact levels. [Sound](sound.md) describes what they test.
+
+| Test | What it proves |
+| --- | --- |
+| `the_theme_starts_with_the_desk` | A new desk has one order waiting: loop the theme. An idle frame adds none. |
+| `every_action_of_the_player_is_answered` | A move left, a move right, a turn, a kicked turn, a blocked press and a lock each play their own cue and no other. A soft-drop row starts the loop. |
+| `gravity_makes_no_sound` | Twenty rows fallen without Down held order nothing. |
+| `a_held_key_ticks_no_faster_than_the_mixer_can_play` | For a key held one second, no two ticks are closer than `MOVE_GAP`, about every other move is heard, the press is at full level and the repeats are quieter. Two presses a fifth of a second apart are both at full level. |
+| `the_soft_drop_runs_while_rows_fall_and_stops_when_they_stop` | Ten rows start one loop and do not stop it. A frame of a third of a second does not stop it if a row fell in that frame. It stops once when the rows stop, and at once when the piece locks. The next row starts it again. |
+| `a_longer_fall_lands_harder_and_a_settled_piece_has_no_thump` | A piece that settled plays `Lock` alone. A hard drop adds `HardDrop`, louder for 0, 1, 4 and 10 rows in turn, and no louder for 21. The next lock is an ordinary one again. |
+| `a_bigger_piece_lands_heavier` | `Lock` is louder for 4 cells than for 3, and for 5 than for 4. |
+| `each_count_of_rows_has_its_own_cue_and_ducks_the_theme_more` | 1 to 5 rows play `Clear1` to `Clear5`. One row leaves the theme alone. From two rows on, each count lowers it further; it comes back without dipping again, to exactly its own level. |
+| `a_level_up_plays_its_cue_and_holds_the_theme_down_longer_than_a_clear` | A level-up holds the theme down longer than a four-row clear does, and a clear with a level-up longer still. |
+| `a_pause_cuts_what_was_ringing_and_fades_the_theme_out_and_back` | A pause in the middle of a four-row clear stops every cue but the theme, plays `Pause` once, and takes the theme to silence in about `FADE_OUT` from where the clear had lowered it, without ever raising it. A long pause orders nothing more. A resume plays `Resume` once and brings the theme back in about `FADE_IN`, not held down by the clear the pause cut. |
+| `the_end_stops_the_theme_and_nothing_brings_it_back` | `GameOver` stops the theme and a level-up cue from the same lock, and plays its own cue. No later frame changes the theme's volume. |
+| `a_new_game_silences_the_old_one_and_starts_the_theme_again` | `Desk::restart` first stops every cue, then loops the theme and plays `NewGame`. Nothing of the old game is left: no duck, no ending, no soft-drop loop. |
+| `every_cue_has_a_file_and_a_level_that_cannot_clip_alone` | Every cue has a file compiled in and a level between 0 and 1, and its index is its place in `Cue::ALL`. |
+
+### Staging keys
+
+These tests are in `src/stage.rs` and run only with the `stage` feature. They
+prove that each stage leads where the sound bench assumes it does. See
+[Controls and timing](controls-and-timing.md#staging-keys).
+
+| Test | What it proves |
+| --- | --- |
+| `a_hard_drop_on_staged_rows_clears_exactly_that_many` | After F1 to F5, the piece fits, has 3 to 5 cells, and a hard drop clears exactly 1 to 5 rows, leaves blocks in the well and does not end the game. |
+| `the_row_after_f6_raises_the_level` | After F6, one cleared row pushes `LevelUp`. |
+| `the_lock_after_the_brim_ends_the_game_whatever_piece_comes_next` | After F7 the piece fits, and its lock ends the game without clearing a row, for 300 random next pieces. |
+| `an_empty_well_puts_the_piece_back_at_the_top` | F8 empties the well and returns the piece to its spawn row. |
+
 ## What has no test
 
 | Area | Behaviour with no test |
 | --- | --- |
-| `Game::update` | The whole function: reading keys, the move on a press, applying repeat moves, both keys held, hard drop, soft drop, falling, and the lock when the piece cannot move down. |
+| `Game::update` | The function itself: reading keys, applying repeat moves, both keys held, and that it calls `sidestep`, `rotate`, `hard_drop` and `descend` at the right moments. Those four are tested. |
 | `main` | The order of a frame, the P toggle, P being ignored when the game is over, and the seeding of the random generator. |
 | Rendering | `conf`, `draw_piece`, the `Game::draw` family and the three `Fx::draw_*` functions: what is actually drawn, including which moves get a faint copy of the piece. This can only be judged by running the game. |
 | Effects in `main` | That `Fx::tick` is skipped during a pause and that a restart replaces `Fx`. |
+| Sound in `main` | That every event reaches `Desk::on`, that `Desk::frame` runs every frame, and that a restart calls `Desk::restart`. |
+| `Speakers` | `Speakers::load` and `Speakers::obey`: that an order becomes a sound. This needs a sound card. |
+| What is heard | The files, their levels and the mix. No test listens. The sound bench checks them: `mise run sound-check` measures the files and the room in the mix, and `mise run sound-record` records the running game. Neither is part of `mise run test`. See [Sound](sound.md#checking-the-sound). |
+| `stage::keys` | That each function key calls its stage. The stages themselves are tested. |
 | Fall speed | The formula `(0.6 - 0.05 * level).max(0.08)` and the soft-drop value `0.04`. |
 | `Game::level` | Not checked directly. One test checks only that `LevelUp` is pushed when `lines` goes from 9 to 11. |
 | `Game::lock` | That `after` gets a new piece, and that the piece that ends the game stays in place. |

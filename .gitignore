@@ -15,3 +15,4 @@
 /target
 /.claude/worktrees/
 /site/
+__pycache__/

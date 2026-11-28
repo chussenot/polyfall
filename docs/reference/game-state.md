@@ -45,10 +45,11 @@ functions that change the field afterwards.
 | `idle` | `f32` | `0.0` | Seconds of play with no key held, for the automatic pause. | `tick_idle` | `tick_idle` |
 | `over` | `bool` | `false` | The game has ended. | `lock` | `main`, `can_restart`, `tick_idle`, `draw_overlay` |
 | `paused` | `bool` | `false` | The game is paused, by P or by the automatic pause. | `main`, `tick_idle` | `main`, `can_restart`, `tick_idle`, `draw_overlay` |
-| `events` | `Vec<Event>` | empty | What happened since `main` last emptied it, in order. Game logic only pushes to it. | `shift`, `rotate`, `hard_drop`, `lock`, `main` | `main` |
+| `events` | `Vec<Event>` | empty | What happened since `main` last emptied it, in order. Game logic only pushes to it. | `shift`, `sidestep`, `descend`, `rotate`, `hard_drop`, `lock`, `main` | `main` |
 
 The state of the effects is not in `Game`. It is in a separate `Fx` value,
-also owned by `main`. See [Effects](effects.md).
+also owned by `main`. See [Effects](effects.md). The state of the sound is in
+a `Desk` value, in the same way. See [Sound](sound.md).
 
 ## `Piece`
 
@@ -82,7 +83,7 @@ Keep these true when you change the code.
   on this: it writes the cells into `grid` without checking the indices.
 - **`color` is never `0` for a piece.** Drawing code indexes
   `COLORS[color as usize - 1]`.
-- **No rule reads `events` or `Fx`.** They exist for the display. A change
+- **No rule reads `events`, `Fx` or `Desk`.** They exist for the display and the sound. A change
   there must never change the well, the score or a timing.
 - **`over` and `paused` are never both true in normal play.** P is ignored
   when the game is over, and `tick_idle` does not pause a game that is over.

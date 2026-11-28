@@ -23,7 +23,7 @@ It exists for short breaks at a desk:
 - **Nothing to learn first.** It starts falling the moment the window opens.
 - **Nothing to lose.** It pauses itself when you stop touching the keyboard, so
   leaving mid-game costs nothing.
-- **Small on purpose.** One window, one keyboard, two source files. A feature has to
+- **Small on purpose.** One window, one keyboard, three source files. A feature has to
   earn its place.
 
 </td>
