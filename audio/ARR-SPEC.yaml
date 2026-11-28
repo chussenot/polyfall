@@ -1,0 +1,158 @@
+# Arrangement spec for the Polyfall theme, in the ARR-SPEC v1.0 layout of
+# jtydhr88/music-composition-skills (mc-workflow). compose.py is this document as code;
+# the numbers under `measured` come from the render, not from intention.
+spec_version: "1.0"
+
+meta:
+  title: "Polyfall: theme (gameplay loop)"
+  style_layer: "none"
+  style_layers:
+    - {skill: mc-style-cinematic, role: base, owns: [instrumentation, color_instruments, harmony, melody, form]}
+    - {skill: mc-style-edm, role: overlay, owns: [groove, low_end, timbre]}
+  fusion_note: "A small orchestra plays a machine's pattern: plucked and bowed strings carry the pitches, the synth gives only the pulse, the low end and the glass."
+  key: "D minor"
+  mode: dorian
+  meter: "12/8"
+  meter_note: "Every bar is 12 eighth pulses grouped 3 + 4 + 5, never 3 + 3 + 3 + 3."
+  tempo: 208            # eighth pulses a minute; a bar lasts 3.46 s
+  target_duration: "1:40"
+  deliverable: [full_mix]
+  upstream:
+    brief: "Compose the music of Polyfall with sonomorph's advanced engine. PRODUCT.md: short breaks at a desk, random pieces of 3 to 5 cells in a well 12 columns wide, restrained and minimal; must not copy the music of any existing game."
+    lyrics: {}
+    picture: {}
+
+intent:
+  one_thing: "Make the rule of the game audible: three, four and five fill a row of twelve."
+  reference_pair:
+    - {track: "Steve Reich, Music for 18 Musicians (Pulses)", borrow: "A steady pulse shared out between instrument groups that take turns; nothing else from it: not its harmony, its length or its mallets."}
+    - {track: "Daft Punk, TRON: Legacy score (The Grid)", borrow: "An orchestra and a synth that divide the spectrum, synth at the bottom and the top, orchestra in the middle; not its themes or its brass weight."}
+  listener_situation: "At a desk, through laptop speakers or headphones, in a break of a few minutes. Heard as a loop, many times, with most attention on the falling piece."
+  emotional_arc:
+    - {section: A, mood: "alert, bare, counting", value: 4}
+    - {section: B, mood: "opening out, a question", value: 5}
+    - {section: A2, mood: "sure of itself", value: 6}
+    - {section: BR, mood: "held breath", value: 2}
+    - {section: C, mood: "the row completes", value: 9}
+
+material:
+  motif: "Twelve pulses in three cells. Cell of 3: up a fifth and one step back (D A G). Cell of 4: a long note and two steps down (F. E D). Cell of 5: under the tonic and back, held (C D...)."
+  motif_abc: "L:1/8 | D A G F2 E D C D4 |"
+  character: "A counting figure that climbs once and then settles."
+  stated_in: [A]
+  development_mode: "working-out of one motif"
+
+form:
+  - {id: A,  name: Verse,     bars: 8, start_bar: 1,  harmony: "|Im9 |Im9 |bIIImaj7 |IV |Im9 |Im9 |Vm7 |IV |", harmony_letters: "|Dm9 |Dm9 |Fmaj7 |G |Dm9 |Dm9 |Am7 |G |", melody_register: "mid", development: "repeat+sequence", energy: 4, events: [low_cell_in, ticks_in, mid_cell_in, high_cell_in, shadow_in, bass_in, horns_in], note: "Four bars of the cells alone, entering one size at a time, before any melody. Bar 7 is the motif a step up."}
+  - {id: B,  name: Bridge,    bars: 6, start_bar: 9,  harmony: "|bVImaj7 |bVII |Vm7 |bVImaj7 |bIImaj7 |V |", harmony_letters: "|Bbmaj7 |C |Am7 |Bbmaj7 |Ebmaj7 |A |", melody_register: "mid-high", development: "fragment+sequence", energy: 5, events: [high_cell_out, shadow_out, horns_out, violins_in, pad_strings_in], note: "Only the three-note head of the motif, climbing bar by bar; the middle of each bar is left empty. Six bars, not eight. Ebmaj7 and the major V are outside the mode."}
+  - {id: A2, name: Verse,     bars: 6, start_bar: 15, harmony: "|Im9 |bIIImaj7 |IV |Im9 |Vm7 |IV |", harmony_letters: "|Dm9 |Fmaj7 |G |Dm9 |Am7 |G |", melody_register: "high", development: "vary", energy: 6, events: [pad_strings_out, high_cell_in, shadow_in, horns_in, kick_in], note: "The motif an octave up in the violins over the horns, with a kick on the downbeat. Two bars shorter than A."}
+  - {id: BR, name: Breakdown, bars: 3, start_bar: 21, harmony: "|Im9 |bVImaj7 |IVm6 |", harmony_letters: "|Dm9 |Bbmaj7 |Gm6 |", melody_register: "mid-low", development: "augment", energy: 2, events: [mid_cell_out, high_cell_out, shadow_out, violins_out, bass_out, kick_out, ticks_out, pad_synth_in], note: "The motif at half speed across two bars, then a bar with no melody at all. Three bars."}
+  - {id: C,  name: Chorus,    bars: 6, start_bar: 24, harmony: "|Im9 |bIIImaj7 |bVII/3 |IV |bVImaj7 |V |", harmony_letters: "|Dm9 |Fmaj7 |C/E |G |Bbmaj7 |A |", melody_register: "high", development: "recap+counterpoint", energy: 9, events: [pad_synth_out, mid_cell_in, high_cell_in, violins_in, bass_in, kick_in, ticks_in, pad_strings_in, lead_in, basses_in], note: "Everyone, the motif in three octaves. Ends on the major V and falls back into the bare opening: the loop is the resolution."}
+
+arrangement:
+  roster:
+    - {id: low_cell,    instrument: "celli, pizzicato",                 role: "pattern (cell of 3)", band: "low-mid",  entry: A,  exit: end}
+    - {id: mid_cell,    instrument: "violas, spiccato",                 role: "pattern (cell of 4)", band: "mid",      entry: A,  exit: end}
+    - {id: high_cell,   instrument: "synth glass (triangle, high-passed)", role: "pattern (cell of 5)", band: "high",  entry: A,  exit: end}
+    - {id: shadow,      instrument: "violins, pizzicato, an octave under the glass", role: "colour", band: "mid-high", entry: A,  exit: A2}
+    - {id: ticks,       instrument: "short high-passed noise tick",     role: "hook",                band: "7 kHz up", entry: A,  exit: end}
+    - {id: horns,       instrument: "French horns, sustained",          role: "melody",              band: "mid",      entry: A,  exit: end}
+    - {id: violins,     instrument: "violins, sustained",               role: "melody",              band: "mid-high", entry: B,  exit: end}
+    - {id: lead,        instrument: "saw lead doubling the violins",    role: "melody",              band: "mid-high", entry: C,  exit: end}
+    - {id: bass,        instrument: "saw bass with a sub, filter closed", role: "low end",           band: "below 150 Hz", entry: A, exit: end}
+    - {id: kick,        instrument: "sine thump",                       role: "pulse",               band: "low",      entry: A2, exit: end}
+    - {id: basses,      instrument: "double basses, spiccato",          role: "low end",             band: "low",      entry: C,  exit: end}
+    - {id: pad_strings, instrument: "celli and violas, sustained",      role: "harmonic bed",        band: "mid",      entry: B,  exit: end}
+    - {id: pad_synth,   instrument: "wide saw pad and a low drone",     role: "harmonic bed",        band: "low-mid",  entry: BR, exit: BR}
+  depth_map: {horns: front, violins: front, lead: middle, low_cell: middle, mid_cell: middle, high_cell: middle, ticks: middle, bass: back, kick: back, pad_strings: back, pad_synth: back}
+  bass_kick_relation: {mode: "locked", detail: "The kick sits on the bass's downbeat and, at the peak, on pulse 7; both mark the start of a cell, never the middle of one."}
+  spectrum_budget:
+    - {band: "below 150 Hz", owner: bass, competitors: [low_cell, basses], resolution: "The low cell is plucked and short; the bass holds. The double basses only join at the peak."}
+    - {band: "300 Hz to 2 kHz", owner: horns, competitors: [mid_cell, pad_strings], resolution: "The middle cell plays only pulses 3 to 6; the pad plays only in B and C."}
+    - {band: "above 4 kHz", owner: high_cell, competitors: [ticks, violins], resolution: "Ticks are 100 ms long; the glass plays only pulses 7 to 11."}
+  energy_curve: {A: 4, B: 5, A2: 6, BR: 2, C: 9}
+  subtraction_events:
+    - {at: {section: BR, bar_offset: 0}, what: "Middle cell, high cell, bass, kick and violins all stop; only the low cell, one horn and a pad remain.", why: "The peak needs a floor to rise from, and a player needs a breath in a loop."}
+    - {at: {section: BR, bar_offset: 1}, what: "The ticks stop too.", why: "The hook is missed for two bars, so its return at C is heard."}
+    - {at: {section: B, bar_offset: 0}, what: "The high cell leaves for four bars.", why: "B is about the melody's head; the top of the spectrum is given to the violins."}
+  hooks:
+    vocal_hook: {where: "", shape: ""}
+    arrangement_hook:
+      what: "Three ticks a bar, on pulses 1, 4 and 8: the first pulse of each cell. Long gap, longer gap, longest gap."
+      first_at: A
+      recurs_at: [A, B, A2, C]
+      abc: "L:1/8 | c z2 c z3 c z4 |"
+  groove:
+    feel: straight
+    push_pull:
+      - {part: low_cell, offset_ms: 7, note: "plucked a little late, spread of 5 ms"}
+      - {part: high_cell, offset_ms: -6, note: "the glass leans forward"}
+      - {part: horns, offset_ms: 12, note: "brass speaks late; 18 ms in the break"}
+      - {part: violins, offset_ms: 10, note: "spread of 6 ms"}
+      - {part: ticks, offset_ms: 0, note: "the machine stays on the grid"}
+    fill_policy:
+      bars: [8, 14, 23, 29]
+      rationale: "A fill only where a section ends, and the sections are 8, 6, 6, 3 and 6 bars long."
+
+vocal: {}   # instrumental
+
+mix_intent:
+  mood: "Clear and dry enough to think over; nothing may mask a future sound effect in the 1 to 3 kHz range for long."
+  sound_stage:
+    - {id: low_cell, pan: 35, depth: middle}
+    - {id: mid_cell, pan: -5, depth: middle}
+    - {id: high_cell, pan: 10, depth: middle}
+    - {id: horns, pan: -20, depth: front}
+    - {id: violins, pan: -45, depth: front}
+    - {id: bass, pan: 0, depth: back}
+    - {id: ticks, pan: 25, depth: middle}
+  ducking_map: []
+  dynamics:
+    target_DR_dB: 18
+    notes: ["BR is at least 6 dB under C", "the last bar of C thins out so the loop's opening is not a cliff"]
+  width_map: {A: narrow, B: medium, A2: medium, BR: wide, C: wide}
+  loudness_target: "about -21 dBFS RMS, peaks under -2 dBFS: room above it for effects"
+
+render:
+  sonomorph:
+    engine: advanced
+    score: theme.score
+    loop: true
+    seed: 12
+
+measured:   # theme.wav, 48 kHz stereo, rendered by sonomorph-render on this machine
+  duration_s: 100.4
+  peak_dBFS: -2.8
+  rms_dBFS: -21.0
+  section_rms_dBFS: {A: -22.9, B: -21.7, A2: -21.1, BR: -25.6, C: -18.1}
+  loop_seam: "the jump across the seam is smaller than the 99th percentile of ordinary sample-to-sample steps"
+
+checks:
+  self_audit:
+    - "1 intent: four items, two references, each says what is borrowed: pass"
+    - "2 sections abut (1, 9, 15, 21, 24; 29 bars): pass"
+    - "3 not all multiples of 8 (8, 6, 6, 3, 6): pass"
+    - "4 energy_curve keys equal form ids: pass"
+    - "5 energy falls (A2 6 to BR 2, and C 9 to A 4 at the loop); measured -21.1 to -25.6 dB: pass"
+    - "6 subtraction events: three: pass"
+    - "7 every part has an entry; shadow leaves after A2 and pad_synth plays only in BR: pass"
+    - "8 arrangement hook: the three ticks: pass"
+    - "9 out-of-mode chords in B (Ebmaj7, A major) and C (A major): pass"
+    - "10 fills at bars 8, 14, 23, 29: not every four bars: pass"
+    - "11 push and pull: four parts off the grid, one on it: pass"
+    - "12 width takes three values; measured side/mid from 0.37 to 0.43, a smaller spread than intended: partial"
+    - "13 not applicable: no text-prompt backend"
+    - "14 29 bars x 12 pulses / 208 x 60 = 100.4 s against 1:40: pass"
+    - "15, 16 instrumental: skipped"
+    - "17 one base, one overlay, no dimension owned twice: pass"
+    - "18 motif stated in A; development filled for every section; no section is new material: pass"
+    - "19, 20 ASCII chord spelling, structured positions: pass"
+    - "[x] one_thing reads as one sentence"
+    - "[x] the two references lend different things"
+    - "[x] the hook can be tapped on a desk without the score"
+    - "[x] B and BR sit in a different register from their neighbours"
+    - "[x] something is left unsaid: bar 23 has no melody, and the piece never cadences on D; the loop does"
+  exemptions:
+    - "13: the backend is a deterministic score renderer, so there is no style prompt to check."
+    - "S7 by ear: not done. Nobody has listened to these renders; acceptance so far is by measurement only."
+messages: []
