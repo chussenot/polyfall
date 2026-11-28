@@ -41,7 +41,8 @@ adapting to it. Random pieces are the identity of the game, not a side feature.
 - Score is rows cleared at once, squared, times 100; level rises every 10 rows.
 - Pause on P, automatic pause after 8 seconds without a key press, key repeat for
   held Left/Right.
-- No sound or saved high scores today.
+- No sound in the game and no saved high scores today. Music is composed (`audio/`) but not
+  played yet.
 - Two source files: the game in `src/main.rs`, its visual effects in `src/fx.rs`. macroquad 0.4 with audio disabled so it builds
   without ALSA headers.
 - It is an original game in the falling-block genre. It must not copy the name,
@@ -55,7 +56,8 @@ adapting to it. Random pieces are the identity of the game, not a side feature.
 
 - The running game and its unit tests in `src/`; reverse documentation in `docs/`.
 - One screenshot at `docs/assets/screenshot.png`.
-- No logo, art, sound or player feedback exist; none should be invented.
+- Three music scores in `audio/`, with their arrangement spec. The game does not play them yet.
+- No logo, art, sound effects or player feedback exist; none should be invented.
 
 ## Product Principles
 
