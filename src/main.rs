@@ -1,5 +1,6 @@
 use macroquad::prelude::*;
 
+mod best;
 mod fx;
 mod sound;
 #[cfg(feature = "stage")]
@@ -93,8 +94,11 @@ struct Game {
     score: u32,
     lines: u32,
     fall: f32,
-    held: f32, // seconds Left/Right has been held, for key repeat
-    idle: f32, // seconds of active play with no key pressed or held
+    held: f32,   // seconds Left/Right has been held, for key repeat
+    ground: f32, // seconds the falling piece has rested on the stack or the floor
+    resets: u32, // times a move or turn on the ground has restarted `ground` for this piece
+    idle: f32,   // seconds of active play with no key pressed or held
+    best: u32,   // the best score before this game, from `best`; shown, never changed by play
     over: bool,
     paused: bool,
     events: Vec<Event>, // what happened since `main` last took them; write-only for game logic
@@ -103,6 +107,8 @@ struct Game {
 const REPEAT_DELAY: f32 = 0.17;
 const REPEAT_RATE: f32 = 0.05;
 const IDLE_PAUSE: f32 = 8.0; // seconds without a key before the game pauses itself
+const LOCK_DELAY: f32 = 0.5; // seconds a piece rests on something before it locks
+const LOCK_RESETS: u32 = 15; // moves or turns on the ground that restart LOCK_DELAY, per piece
 
 impl Game {
     fn new() -> Self {
@@ -115,7 +121,10 @@ impl Game {
             lines: 0,
             fall: 0.0,
             held: 0.0,
+            ground: 0.0,
+            resets: 0,
             idle: 0.0,
+            best: 0,
             over: false,
             paused: false,
             events: Vec::new(),
@@ -246,6 +255,8 @@ impl Game {
             });
         }
         self.fall = 0.0;
+        self.ground = 0.0;
+        self.resets = 0;
         self.piece = std::mem::replace(
             &mut self.next,
             std::mem::replace(&mut self.after, random_piece()),
@@ -288,6 +299,7 @@ impl Game {
     }
 
     fn update(&mut self) {
+        let before = (self.piece.x, self.piece.y, self.piece.cells.clone());
         let pressed = is_key_pressed(KeyCode::Right) as i32 - is_key_pressed(KeyCode::Left) as i32;
         let down = is_key_down(KeyCode::Right) as i32 - is_key_down(KeyCode::Left) as i32;
         if pressed != 0 {
@@ -307,8 +319,29 @@ impl Game {
             self.hard_drop();
             return;
         }
-        self.fall += get_frame_time();
-        let soft = is_key_down(KeyCode::Down);
+        let moved = before != (self.piece.x, self.piece.y, self.piece.cells.clone());
+        self.gravity(get_frame_time(), is_key_down(KeyCode::Down), moved);
+    }
+
+    /// Falling, and locking. A piece that rests on something locks after `LOCK_DELAY`, not
+    /// at once: there is time to slide it or turn it into place. A move or a turn on the
+    /// ground (`moved`) restarts that time, at most `LOCK_RESETS` times per piece, so a piece
+    /// cannot be kept alive for ever. Holding Down does not shorten the delay; Space does.
+    fn gravity(&mut self, dt: f32, soft: bool, moved: bool) {
+        let p = &self.piece;
+        if !self.fits(&p.cells, p.x, p.y + 1) {
+            if moved && self.resets < LOCK_RESETS {
+                self.ground = 0.0;
+                self.resets += 1;
+            }
+            self.ground += dt;
+            if self.ground >= LOCK_DELAY {
+                self.lock();
+            }
+            return;
+        }
+        self.ground = 0.0;
+        self.fall += dt;
         let interval = if soft {
             0.04
         } else {
@@ -396,6 +429,8 @@ impl Game {
         let score = fx.score(self.score).to_string();
         draw_text(&score, px, 74.0, 48.0, TEXT);
         draw_text(&score, px, 74.0, 48.0, fx.score_tint());
+        let best = self.best.max(self.score);
+        draw_text(format!("BEST {best}"), px, 94.0, 14.0, DIM);
         draw_text("LINES", px, 112.0, 16.0, DIM);
         draw_text(self.lines.to_string(), px, 140.0, 28.0, TEXT);
         draw_text("LEVEL", px + 80.0, 112.0, 16.0, DIM);
@@ -462,6 +497,7 @@ impl Game {
             ("Down", "soft drop"),
             ("Space", "hard drop"),
             ("P", "pause"),
+            ("M", "mute"),
         ];
         for (i, (key, action)) in keys.iter().enumerate() {
             let y = 522.0 + i as f32 * 24.0;
@@ -476,7 +512,13 @@ impl Game {
         let lines = if self.over {
             [
                 "Game over".to_string(),
-                format!("Score {}", self.score),
+                if self.score > self.best {
+                    format!("New best {}", self.score)
+                } else if self.best == 0 {
+                    format!("Score {}", self.score)
+                } else {
+                    format!("Score {}  best {}", self.score, self.best)
+                },
                 "R  new game".to_string(),
             ]
         } else if self.paused {
@@ -551,16 +593,34 @@ fn conf() -> Conf {
 
 #[macroquad::main(conf)]
 async fn main() {
-    rand::srand(macroquad::miniquad::date::now() as u64);
+    // microseconds: two games started within the same second must not get the same pieces
+    rand::srand((macroquad::miniquad::date::now() * 1e6) as u64);
+    // a staged game is not a real one: the sound bench must not leave a best score behind
+    let best_file = if cfg!(feature = "stage") {
+        None
+    } else {
+        best::file()
+    };
+    let mut best = best::load(best_file.as_deref());
     let mut game = Game::new();
+    game.best = best;
     let mut fx = Fx::default();
-    let speakers = Speakers::load().await;
+    let mut speakers = Speakers::load().await;
     let mut desk = Desk::new(); // its first order starts the theme
     loop {
         if is_key_pressed(KeyCode::R) && game.can_restart() {
+            if game.score > best {
+                // a game given up from the pause counts too
+                best = game.score;
+                best::save(best_file.as_deref(), best);
+            }
             game = Game::new();
+            game.best = best;
             fx = Fx::default();
             desk.restart();
+        }
+        if is_key_pressed(KeyCode::M) {
+            speakers.toggle_mute();
         }
         if is_key_pressed(KeyCode::P) && !game.over {
             game.paused = !game.paused;
@@ -573,6 +633,10 @@ async fn main() {
         }
         // effects and sound only listen: they take what happened and never hand anything back
         for event in game.events.drain(..) {
+            if event == Event::GameOver && game.score > best {
+                best = game.score;
+                best::save(best_file.as_deref(), best);
+            }
             desk.on(&event);
             fx.on(event);
         }
@@ -590,6 +654,8 @@ async fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const FRAME: f32 = 1.0 / 60.0;
 
     #[test]
     fn random_pieces_spawn_inside_the_well() {
@@ -812,6 +878,65 @@ mod tests {
         g.descend(true);
         assert!(matches!(&g.events[..], [Event::Locked { .. }]));
         assert_eq!(g.grid[H as usize - 1][3], 1);
+    }
+
+    /// A one-cell piece resting on the floor at column 3.
+    fn on_the_floor() -> Game {
+        let mut g = Game::new();
+        g.piece = Piece {
+            cells: vec![(0, 0)],
+            x: 3,
+            y: H - 1,
+            color: 1,
+        };
+        g
+    }
+
+    fn locked(g: &Game) -> bool {
+        g.events.iter().any(|e| matches!(e, Event::Locked { .. }))
+    }
+
+    #[test]
+    fn a_resting_piece_locks_after_the_lock_delay_and_not_before() {
+        for soft in [false, true] {
+            let mut g = on_the_floor();
+            let mut t = 0.0;
+            while t + FRAME < LOCK_DELAY - 0.01 {
+                g.gravity(FRAME, soft, false);
+                t += FRAME;
+            }
+            assert!(!locked(&g), "locked early, Down held: {soft}");
+            g.gravity(0.02, soft, false);
+            assert!(locked(&g), "Down held: {soft}");
+            assert_eq!((g.ground, g.resets), (0.0, 0)); // the next piece starts fresh
+        }
+    }
+
+    #[test]
+    fn a_move_on_the_ground_restarts_the_delay_a_limited_number_of_times() {
+        let mut g = on_the_floor();
+        // keep moving just before it would lock: each move buys a whole delay again
+        for _ in 0..LOCK_RESETS {
+            g.gravity(LOCK_DELAY - 0.05, false, false);
+            g.gravity(0.0, false, true);
+            assert!(!locked(&g));
+        }
+        assert_eq!(g.resets, LOCK_RESETS);
+        // the resets are spent: the next move does not help
+        g.gravity(LOCK_DELAY - 0.05, false, false);
+        g.gravity(0.06, false, true);
+        assert!(locked(&g));
+    }
+
+    #[test]
+    fn a_piece_in_the_air_falls_and_does_not_count_toward_the_lock() {
+        let mut g = on_the_floor();
+        g.piece.y = H - 3;
+        g.gravity(0.4, false, false);
+        assert_eq!(g.ground, 0.0);
+        g.gravity(0.25, false, false); // one fall interval at level 0 is 0.6 s
+        assert_eq!(g.piece.y, H - 2);
+        assert!(!locked(&g));
     }
 
     #[test]

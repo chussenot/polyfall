@@ -35,9 +35,9 @@ def midi(name):
 # each cue is rendered, its loudest 100 ms is measured, and this number is moved until the cue
 # sits where the cue sheet says it should. Change a sound's character above; its level here.
 TRIM = {
-    "move_left": 3.3, "move_right": 3.6, "rotate": -3.6, "blocked": -4.2, "soft_drop": 7.6,
-    "lock": -6.7, "hard_drop": -10.3,
-    "clear_1": -2.4, "clear_2": -4.6, "clear_3": -4.9, "clear_4": -11.0, "clear_5": -11.1,
+    "move_left": 3.3, "move_right": 3.6, "rotate": -3.6, "blocked": -18.4,
+    "soft_drop": 7.6, "lock": -6.7, "hard_drop": -10.3, "clear_1": -2.4,
+    "clear_2": -4.6, "clear_3": -4.9, "clear_4": -11.0, "clear_5": -11.1,
     "pause": -1.5, "resume": -1.1, "new_game": -2.8,
 }
 
@@ -140,7 +140,12 @@ def blocked():
                    "attack=0.0006 decay=0.022 sustain=0 release=0.015")
     c.inst("thud", "synth gain=14 wave=noise filter=lp cutoff=520 res=0.2 keytrack=0 "
                    "attack=0.0005 decay=0.014 sustain=0 release=0.01")
+    # the knock's body is under 200 Hz, which laptop speakers barely play: a short, dull tap
+    # around 1.6 kHz carries it there, well under the move ticks so it does not read as one
+    c.inst("tap", "synth gain=32 wave=noise filter=bp cutoff=1600 res=0.3 keytrack=0 "
+                  "attack=0.0004 decay=0.008 sustain=0 release=0.006")
     c.note(0, 0.09, "knock", "D3", 112)
+    c.note(0, 0.012, "tap", "C4", 96)
     c.note(0, 0.05, "wood", "D4", 104)
     c.note(0, 0.03, "thud", "C4", 110)
     c.write()

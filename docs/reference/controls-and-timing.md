@@ -20,7 +20,7 @@ Read it before you change how a key behaves or tune a delay.
 
 ## Keys
 
-The program reads seven keys. They cannot be remapped.
+The program reads eight keys. They cannot be remapped.
 
 | Key | Action | Active when | Read in |
 | --- | --- | --- | --- |
@@ -30,6 +30,7 @@ The program reads seven keys. They cannot be remapped.
 | Space | Hard drop: move the piece down until it stops, and lock it. | Playing | `Game::update`, `Game::hard_drop` |
 | P | Pause or resume. | Not over | `main` |
 | R | Start a new game. | Over or paused | `main` |
+| M | Mute every sound, or bring it back. Sounds already playing are silenced too. | Always | `main`, `Speakers::toggle_mute` |
 
 "Playing" means the game is neither over nor paused. `main` calls `update` only
 then, so a key pressed while the game is paused or over is not kept for later.

@@ -11,9 +11,10 @@ product; browser and touch builds are out of scope.
 
 ## Users
 
-One player: the author. Played in short breaks between tasks, at the same desk and
-keyboard used for work. No other audience is planned, so nothing needs explaining to
-a first-time stranger.
+Players at a desk, starting with the author: played in short breaks between tasks,
+at the same keyboard used for work. Since 2026-11-28 the game is meant to be
+downloaded and played by others too, under the MIT licence. It still has no menus
+and no onboarding: a stranger learns it from the key list beside the well.
 
 ## Product Purpose
 
@@ -43,7 +44,11 @@ adapting to it. Random pieces are the identity of the game, not a side feature.
   held Left/Right.
 - A looping theme, a level-up cue and a game-over cue, and a sound for every action of the
   player: move, rotate, a blocked move, soft drop, lock, hard drop, row clears of 1 to 5 rows,
-  pause, resume and new game. All composed in `audio/`. No saved high scores today.
+  pause, resume and new game. All composed in `audio/`. M mutes everything.
+- One best score, kept in a file between runs and shown beside the score. No names,
+  no table, no online scores.
+- A piece resting on the stack locks after half a second; moving or turning it
+  restarts that time, at most 15 times.
 - Three source files: the game in `src/main.rs`, its visual effects in `src/fx.rs`, its sound in `src/sound.rs`. macroquad 0.4 with its audio feature, which
   needs the ALSA headers to build on Linux. A fourth file, `src/stage.rs`, is compiled only for the
   sound bench in `tools/sound` and is not in the game as shipped.
@@ -68,5 +73,5 @@ adapting to it. Random pieces are the identity of the game, not a side feature.
 1. Random shapes come first: any change should make unfamiliar pieces easier to read
    and more interesting to place, never more predictable.
 2. Instant in, instant out: no menus or setup between launching and playing.
-3. Built for one player at a desk: keyboard only, no onboarding, no accounts.
+3. Built for a player at a desk: keyboard only, no onboarding, no accounts.
 4. Stay small: a feature must earn its place in a one-file game.

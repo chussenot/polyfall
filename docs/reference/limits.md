@@ -47,7 +47,7 @@ also lists the other limits of rotation.
 | Behaviour | Cause |
 | --- | --- |
 | Fall speed depends on the frame rate. At each downward step `fall` returns to `0.0` instead of keeping the time left over, and the piece moves at most one row per frame. The real time between two steps is the fall interval rounded up to a whole number of frames. The effect is largest for the short intervals, `0.04` s and `0.08` s. | `Game::update` |
-| There is no lock delay beyond the fall interval. With Down held, a piece resting on the stack locks after at most `0.04` s plus one frame. | `Game::update` |
+| A move or turn on the ground is noticed by comparing the piece before and after the keys of a frame. A move that cancels itself within one frame (Left and Right pressed together) does not restart the lock delay. | `Game::update` |
 
 ## Display
 
@@ -69,7 +69,6 @@ also lists the other limits of rotation.
 
 | Behaviour | Cause |
 | --- | --- |
-| The seed of the random generator is the clock in whole seconds. Two games started within the same second get the same pieces. | `main` |
 | `score` and `lines` are `u32` and are added to without an overflow check. | `Game::lock` |
 
 ## Agreement with `PRODUCT.md`
@@ -78,5 +77,5 @@ also lists the other limits of rotation.
 code: a well of 12 by 22, pieces of 3 to 5 cells coloured by cell count, two
 upcoming pieces, a landing outline, a score of rows squared times 100, a level
 every 10 rows, pause on P, an automatic pause after 8 seconds, key repeat for
-Left and Right, R only when paused or over, a theme and sound effects, no
-saved scores, three source files, and macroquad 0.4.
+Left and Right, R only when paused or over, M to mute, a theme and sound
+effects, one saved best score, and macroquad 0.4.

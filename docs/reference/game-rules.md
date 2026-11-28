@@ -71,9 +71,9 @@ What follows:
 - The code does not make shapes equally likely, does not treat mirror images
   as one shape and does not avoid repeating the previous shape.
 
-`main` seeds the random generator once, with
-`rand::srand(macroquad::miniquad::date::now() as u64)`. The seed is the clock in
-whole seconds.
+`main` seeds the random generator once, with the clock in microseconds:
+`rand::srand((macroquad::miniquad::date::now() * 1e6) as u64)`. Two games
+started one after the other get different pieces.
 
 ## Life of a piece
 
@@ -109,9 +109,11 @@ one row. If it cannot move down, it locks.
 
 Three details:
 
-- There is no separate lock delay. A piece resting on the stack can still be
-  moved and rotated until the next downward step fails. Moving or rotating does
-  not reset `fall`.
+- A piece that rests on the stack or the floor locks after `LOCK_DELAY`
+  (`0.5` s), not at its next step. Until then it can still be moved and turned.
+  A successful move or turn while it rests restarts the delay, at most
+  `LOCK_RESETS` (15) times per piece, so a piece cannot be kept alive for ever.
+  Holding Down does not shorten the delay. `Game::gravity` holds this rule.
 - A hard drop (Space) moves the piece down until it stops and locks it in the
   same frame.
 - A lock sets `fall` to `0.0`, so each new piece waits one full interval before

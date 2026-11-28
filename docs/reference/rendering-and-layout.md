@@ -126,6 +126,7 @@ moves in the same frame as the key.
 | Label `SCORE` | 380 | 34 | 16 | `DIM` |
 | Score, as given by `Fx::score` | 380 | 74 | 48 | `TEXT`, plus `Fx::score_tint` |
 | Gain `+<points>`, for 1 s after scoring | right edge at 540 | 34 | 16 | Colour of the piece that scored |
+| `BEST <n>`: the larger of the saved best and the score | 380 | 94 | 14 | `DIM` |
 | Label `LINES` | 380 | 112 | 16 | `DIM` |
 | Rows removed (`lines`) | 380 | 140 | 28 | `TEXT` |
 | Label `LEVEL` | 460 | 112 | 16 | `DIM` |

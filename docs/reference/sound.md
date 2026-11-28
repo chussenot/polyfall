@@ -102,7 +102,7 @@ the two music cues use 400 ms.
 | `SoftDrop` | A row falls with Down held (`SoftDropped`). | A loop of soft ticks, one every 46 ms, until the rows stop. | 0.16 | -21.9 | -15.1 |
 | `MoveLeft`, `MoveRight` | The piece moves one column (`Moved`). | One tick. Left is lower and to the left, right higher and to the right. | 0.32 | -15.9 | -9.9 |
 | `Rotate` | The piece turns (`Rotated`). | A click, then a tone that rises a fifth and stops. | 0.40 | -13.9 | -4.1 |
-| `Blocked` | A key press could not move or turn the piece (`Blocked`). | A dull, low knock. | 0.28 | -17.0 | -4.5 |
+| `Blocked` | A key press could not move or turn the piece (`Blocked`). | A dull, low knock with a short tap at 1.6 kHz, so laptop speakers play it too. | 0.40 | -13.9 | -8.5 |
 | `Lock` | The piece joins the stack (`Locked`). | A wooden knock with a low body. | 0.53 | -11.4 | -1.7 |
 | `HardDrop` | The lock that follows a hard drop (`HardDropped`). | Added to `Lock`: a thump falling to a low D, the air it pushes out, a crack. | up to 0.79 | -8.1 | +4.9 |
 | `Clear1` to `Clear5` | The lock removes 1 to 5 rows (`Locked`). | One glass note per row, climbing. See [Row clears](#row-clears). | 0.35 to 0.70 | -15.1 to -9.0 | +1.9 to +10.3 |
@@ -291,7 +291,6 @@ together.
 | The levels were set from measurements, not by ear. | `level` |
 | `MASTER` leaves room for everything that can start on one block and for two locks in a row. Three or more events piling up are only sampled, not counted through. | `MASTER`, `tools/sound/bench.py` |
 | On Windows the room is smaller: where blocks vary in length a pile can meet the theme anywhere, and the highest one then stops 0.1 dB short of full scale. | `quad-snd` |
-| `Blocked` stands out from the theme only between 125 and 160 Hz. Speakers that do not play that low leave little of it. | `audio/sfx.py` |
 | A sound starts up to 93 ms late and is never closer than 93 ms to the one before it. | The mixer's block size. |
 | On Windows the mixer's blocks vary in length, so a loop can still end inside a block there. | `quad-snd` |
 | A row clear's thud is fixed at 0.27 s into its file. When a second piece locks during the clear, the stack lands sooner on screen than in the sound. | `audio/sfx.py` |
