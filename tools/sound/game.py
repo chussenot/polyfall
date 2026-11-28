@@ -16,7 +16,7 @@ OUT = ROOT / "target" / "sound"      # everything the bench writes; target/ is n
 BLOCK = 4096                          # frames macroquad's mixer mixes at a time
 RATE = sig.RATE                       # the rate it mixes at
 BLOCK_SECONDS = BLOCK / RATE
-LOOPS = ("theme", "soft_drop")        # the cues the game plays round and round
+LOOPS = ("title", "theme", "soft_drop")        # the cues the game plays round and round
 
 
 def _source():

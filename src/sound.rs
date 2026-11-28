@@ -32,6 +32,7 @@ macro_rules! asset {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Cue {
     // music
+    Title,
     Theme,
     LevelUp,
     GameOver,
@@ -55,7 +56,8 @@ pub enum Cue {
 }
 
 impl Cue {
-    const ALL: [Cue; 18] = [
+    const ALL: [Cue; 19] = [
+        Cue::Title,
         Cue::Theme,
         Cue::LevelUp,
         Cue::GameOver,
@@ -87,6 +89,7 @@ impl Cue {
     /// length, so the effects are WAV: the Ogg decoder pads the end of a short file.
     fn bytes(self) -> &'static [u8] {
         match self {
+            Cue::Title => asset!("title.ogg"),
             Cue::Theme => asset!("theme.ogg"),
             Cue::LevelUp => asset!("level_up.ogg"),
             Cue::GameOver => asset!("game_over.ogg"),
@@ -115,24 +118,25 @@ impl Cue {
 /// factor, for reading. `MASTER` then lowers them all together.
 fn level(cue: Cue) -> f32 {
     let balance = match cue {
-        Cue::Theme => 0.60,     //  -4.4 dB: the bed; leaves the room the effects need
-        Cue::LevelUp => 0.40,   //  -8 dB
-        Cue::GameOver => 0.70,  //  -3 dB
-        Cue::SoftDrop => 0.16,  // -16 dB: the quietest sound in the game
-        Cue::MoveLeft => 0.32,  // -10 dB
+        Cue::Title => 0.60,   //  -4.4 dB: the title screen's theme, as loud as the game's
+        Cue::Theme => 0.60,   //  -4.4 dB: the bed; leaves the room the effects need
+        Cue::LevelUp => 0.40, //  -8 dB
+        Cue::GameOver => 0.70, //  -3 dB
+        Cue::SoftDrop => 0.16, // -16 dB: the quietest sound in the game
+        Cue::MoveLeft => 0.32, // -10 dB
         Cue::MoveRight => 0.32, // -10 dB
-        Cue::Rotate => 0.40,    //  -8 dB
-        Cue::Blocked => 0.40,   //  -8 dB: its tap carries it on small speakers
-        Cue::Lock => 0.53,      //  -5.5 dB
-        Cue::HardDrop => 0.79,  //  -2 dB, for the longest fall
-        Cue::Clear1 => 0.35,    //  -9 dB
-        Cue::Clear2 => 0.38,    //  -8.5 dB
-        Cue::Clear3 => 0.45,    //  -7 dB
-        Cue::Clear4 => 0.70,    //  -3 dB
-        Cue::Clear5 => 0.68,    //  -3.3 dB
-        Cue::Pause => 0.20,     // -14 dB
-        Cue::Resume => 0.20,    // -14 dB
-        Cue::NewGame => 0.22,   // -13 dB
+        Cue::Rotate => 0.40,  //  -8 dB
+        Cue::Blocked => 0.40, //  -8 dB: its tap carries it on small speakers
+        Cue::Lock => 0.53,    //  -5.5 dB
+        Cue::HardDrop => 0.79, //  -2 dB, for the longest fall
+        Cue::Clear1 => 0.35,  //  -9 dB
+        Cue::Clear2 => 0.38,  //  -8.5 dB
+        Cue::Clear3 => 0.45,  //  -7 dB
+        Cue::Clear4 => 0.70,  //  -3 dB
+        Cue::Clear5 => 0.68,  //  -3.3 dB
+        Cue::Pause => 0.20,   // -14 dB
+        Cue::Resume => 0.20,  // -14 dB
+        Cue::NewGame => 0.22, // -13 dB
     };
     balance * MASTER
 }
@@ -156,6 +160,7 @@ const DUCK_HOLD: f32 = 0.25; // seconds the theme stays down under a row clear
 const DUCK_RELEASE: f32 = 5.0; // dB per second on the way back
 const FADE_OUT: f32 = 0.2; // seconds the theme takes to leave on a pause
 const FADE_IN: f32 = 0.3; // and to return
+const TITLE_FADE: f32 = 1.2; // seconds the title theme takes to leave once a game starts
 
 /// Decibels the theme drops by while rows clear, by rows cleared at once.
 const CLEAR_DUCK: [f32; 5] = [0.0, -1.5, -3.0, -5.0, -6.0];
@@ -192,6 +197,8 @@ pub struct Desk {
     fade: f32,  // the theme around a pause: 1 playing, 0 paused
     over: bool, // the end of the game has stopped the theme
     music: f32, // the theme volume last ordered
+    title: f32, // the title theme, as a factor on its level: 1 on the title screen, then fading
+    title_fading: bool,
 }
 
 impl Desk {
@@ -210,9 +217,31 @@ impl Desk {
             fade: 1.0,
             over: false,
             music: level(Cue::Theme),
+            title: 0.0,
+            title_fading: false,
         };
         desk.orders.push(Order::Loop(Cue::Theme, desk.music));
         desk
+    }
+
+    /// A desk for the title screen: the title theme plays, and nothing of a game.
+    pub fn title() -> Self {
+        let mut desk = Desk::new();
+        desk.orders.clear();
+        desk.orders.push(Order::Loop(Cue::Title, level(Cue::Title)));
+        desk.over = true; // no game theme to steer
+        desk.title = 1.0;
+        desk
+    }
+
+    /// Back to the title screen: whatever the game left ringing stops, the title theme starts.
+    pub fn back_to_title(&mut self) {
+        let mut orders = std::mem::take(&mut self.orders);
+        orders.clear();
+        orders.extend(Cue::ALL.map(Order::Stop));
+        *self = Desk::title();
+        orders.append(&mut self.orders);
+        self.orders = orders;
     }
 
     /// The orders written since this was last called, oldest first.
@@ -345,6 +374,17 @@ impl Desk {
         } else {
             (self.fade + dt / FADE_IN).min(1.0)
         };
+        if self.title_fading {
+            self.title = (self.title - dt / TITLE_FADE).max(0.0);
+            if self.title == 0.0 {
+                self.title_fading = false;
+                self.orders.push(Order::Stop(Cue::Title));
+            } else {
+                // equal power: the sum of the two themes does not dip in the middle
+                let volume = level(Cue::Title) * (self.title * std::f32::consts::FRAC_PI_2).sin();
+                self.orders.push(Order::Volume(Cue::Title, volume));
+            }
+        }
         let music = level(Cue::Theme) * gain(self.duck) * self.fade;
         if !self.over && music != self.music {
             self.music = music;
@@ -353,11 +393,23 @@ impl Desk {
     }
 
     /// A new game: silence whatever the old one left ringing, then the theme from its first bar.
+    /// Started from the title screen, the title theme is not cut: it fades out under the
+    /// game's theme in `TITLE_FADE`.
     pub fn restart(&mut self) {
+        let from_title = self.title > 0.0;
         let mut orders = std::mem::take(&mut self.orders);
         orders.clear();
-        orders.extend(Cue::ALL.map(Order::Stop));
+        orders.extend(
+            Cue::ALL
+                .into_iter()
+                .filter(|&cue| !(from_title && cue == Cue::Title))
+                .map(Order::Stop),
+        );
         *self = Desk::new();
+        if from_title {
+            self.title = 1.0;
+            self.title_fading = true;
+        }
         orders.append(&mut self.orders);
         self.orders = orders;
         self.play(Cue::NewGame, 1.0);
@@ -422,6 +474,10 @@ impl Speakers {
                 set_sound_volume(sound, self.heard(self.volumes[cue as usize]));
             }
         }
+    }
+
+    pub fn muted(&self) -> bool {
+        self.muted
     }
 
     fn heard(&self, volume: f32) -> f32 {
@@ -789,6 +845,67 @@ mod tests {
         assert!(orders.contains(&Order::Stop(Cue::Theme)));
         // the duck those rows started must not reach a theme that is no longer playing
         assert!(theme_after(&mut d, false, 5.0).is_empty());
+    }
+
+    /// The title theme's volume after each frame for `seconds`, and whether it was stopped.
+    fn title_after(d: &mut Desk, seconds: f32) -> (Vec<f32>, bool) {
+        let (mut volumes, mut stopped, mut t) = (Vec::new(), false, 0.0);
+        while t < seconds {
+            d.frame(false, FRAME);
+            t += FRAME;
+            for o in taken(d) {
+                match o {
+                    Order::Volume(Cue::Title, v) => volumes.push(v),
+                    Order::Stop(Cue::Title) => stopped = true,
+                    _ => {}
+                }
+            }
+        }
+        (volumes, stopped)
+    }
+
+    #[test]
+    fn the_title_screen_plays_the_title_theme_and_nothing_else() {
+        let mut d = Desk::title();
+        assert_eq!(
+            taken(&mut d),
+            vec![Order::Loop(Cue::Title, level(Cue::Title))]
+        );
+        // it holds steady for as long as the screen is up
+        assert_eq!(title_after(&mut d, 30.0), (vec![], false));
+    }
+
+    #[test]
+    fn a_game_started_from_the_title_fades_the_title_theme_out_under_the_game_theme() {
+        let mut d = Desk::title();
+        taken(&mut d);
+        d.restart();
+        let orders = taken(&mut d);
+        assert!(!orders.contains(&Order::Stop(Cue::Title)));
+        assert!(orders.contains(&Order::Loop(Cue::Theme, level(Cue::Theme))));
+        assert!(orders.contains(&Order::Play(Cue::NewGame, level(Cue::NewGame))));
+        let (volumes, stopped) = title_after(&mut d, TITLE_FADE + 0.2);
+        assert!(stopped);
+        assert!(volumes.windows(2).all(|w| w[1] < w[0]));
+        assert!(volumes[0] < level(Cue::Title));
+        // a second restart, mid-game, has no title theme left to fade
+        d.restart();
+        assert!(taken(&mut d).contains(&Order::Stop(Cue::Title)));
+        assert_eq!(title_after(&mut d, 2.0), (vec![], false));
+    }
+
+    #[test]
+    fn back_to_the_title_stops_the_game_and_starts_the_title_theme() {
+        let mut d = desk();
+        d.on(&locked(4, 4));
+        d.back_to_title();
+        let orders = taken(&mut d);
+        let n = Cue::ALL.len();
+        assert_eq!(orders[..n], Cue::ALL.map(Order::Stop));
+        assert_eq!(orders[n..], [Order::Loop(Cue::Title, level(Cue::Title))]);
+        // the duck of the cut clear is gone with the game
+        d.frame(false, 2.0);
+        assert!(taken(&mut d).is_empty());
     }
 
     #[test]

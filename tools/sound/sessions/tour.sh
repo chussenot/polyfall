@@ -1,7 +1,9 @@
-# Every key a player has, on the game as shipped: taps, a held key, a wall, turns, both drops, a pause.
+# Every key a player has, on random pieces: taps, a held key, a wall, turns, both drops, a pause.
 # seconds: 13
+# needs: stage
 #
-# The pieces are random, so what each key meets is too: a turn may be refused, a drop may clear
+# The staging build is used only because it skips the title screen; no staging key is
+# pressed. The pieces are random, so what each key meets is too: a turn may be refused, a drop may clear
 # a row. There is no cue list to expect; read the timeline for whether each key got its answer.
 
 rest 1.2

@@ -186,7 +186,8 @@ The game and its tests are in `src/main.rs`. The visual effects and their tests
 are in the module `src/fx.rs`, the sound and its tests in the module
 `src/sound.rs`. The only assets are the sounds in `assets/`, and there are no
 configuration files. [Components](architecture/components.md) maps the three
-files. The small module `src/best.rs` reads and writes the best score.
+files. The small module `src/best.rs` reads and writes the best score, and
+`src/title.rs` draws the title screen.
 
 A fourth file, `src/stage.rs`, is not part of the game as shipped. See
 [The sound bench](#the-sound-bench).

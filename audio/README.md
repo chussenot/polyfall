@@ -1,12 +1,13 @@
 # Polyfall music and sound
 
 Scores for [sonomorph](https://github.com/chussenot/sonomorph)'s advanced engine:
-three of music, and fifteen sound effects in `sfx/`. The game plays them from
+four of music, and fifteen sound effects in `sfx/`. The game plays them from
 `assets/`: see "In the game" below.
 
 | Score | What | Length |
 | --- | --- | --- |
 | `theme.score` | The gameplay loop. Seamless (`loop on`). | 29 bars, 1:40 |
+| `title.score` | The title screen, until the player starts. Seamless (`loop on`). | 10 bars, 0:46 |
 | `level_up.score` | The level rises. Plays over the theme. | 2.7 s and a 1.6 s tail |
 | `game_over.score` | The ending. | 9.6 s and a 4 s tail |
 | `sfx/*.score` | One sound effect each. See "The sound effects" below. | 0.05 to 2.1 s |
@@ -42,6 +43,18 @@ to loop it without a glitch. `compose.py` computes the number.
 `ARR-SPEC.yaml` is the full arrangement: intent, form, harmony, who plays when,
 and the checks it was held to. It follows the spec layout of
 [music-composition-skills](https://github.com/jtydhr88/music-composition-skills).
+
+## The title theme
+
+`title` plays from launch until the player starts, then crossfades into the
+theme. It is the same piece at rest: the same chords (`CHORDS`), the same three
+cells and the same motif, at about 156 pulses a minute instead of 208. The low
+cell still counts 3 every bar; the middle cell and the glass take turns, one bar
+each; a horn says only the head of the motif and leaves the middle of the bar
+open; bowed strings, a double bass and a low D drone hold the chord. No synth
+bass, no kick, one tick a bar. Ten bars, Dm9 to Am7, whose pad rings into the
+top of the loop. Its tempo, 155.97, makes the ten bars last exactly 497 blocks,
+derived like the theme's (`TITLE_TEMPO` in `compose.py`).
 
 ## The sound effects
 
@@ -97,7 +110,7 @@ This needs a C compiler. The theme renders in about 8 seconds.
 
 ## In the game
 
-`mise run audio` renders every score at 44100 Hz. The three music scores are
+`mise run audio` renders every score at 44100 Hz. The four music scores are
 encoded to `assets/*.ogg` with ffmpeg. The effects go to `assets/sfx/*.wav` as
 rendered: the game's Ogg decoder pads the end of a short file, and the
 soft-drop loop must keep its exact length. All the files are committed and

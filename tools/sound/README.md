@@ -159,7 +159,7 @@ when, the `session.sh` that sent them, and `game.log`.
 
 | Session | What it plays | Needs |
 | --- | --- | --- |
-| `tour` | Every key a player has, on random pieces. No cue list to expect: read the timeline. | The game as shipped |
+| `tour` | Every key a player has, on random pieces. No cue list to expect: read the timeline. | Staging build, for skipping the title screen only |
 | `clears` | One to five rows cleared by a hard drop. The four-row clear raises the level. | Staging keys |
 | `soft` | A soft drop to the floor and its lock. | Staging keys |
 | `pause` | A pause in the middle of the biggest sound, then a resume. | Staging keys |

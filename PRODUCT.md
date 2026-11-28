@@ -30,7 +30,8 @@ adapting to it. Random pieces are the identity of the game, not a side feature.
 
 ## Operating Context
 
-- Launched from a terminal with `mise run run` (or `cargo run --release`), inside a development session.
+- Launched from a terminal with `mise run run` (or `cargo run --release`). It opens on a title
+  screen with its own looping theme; Enter or Space starts a game, Esc quits.
 - Sessions are short and interruptible; the player may leave at any moment.
 - Keyboard only: arrows to move, rotate and soft-drop, Space to hard-drop, P to pause,
   R for a new game (only when paused or over).
@@ -72,6 +73,7 @@ adapting to it. Random pieces are the identity of the game, not a side feature.
 
 1. Random shapes come first: any change should make unfamiliar pieces easier to read
    and more interesting to place, never more predictable.
-2. Instant in, instant out: no menus or setup between launching and playing.
+2. Instant in, instant out: one key from launch to play. The title screen is the only
+   screen before a game; it has no options and no setup, and Enter or Space leaves it.
 3. Built for a player at a desk: keyboard only, no onboarding, no accounts.
 4. Stay small: a feature must earn its place in a one-file game.
