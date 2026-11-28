@@ -156,4 +156,15 @@ checks:
   exemptions:
     - "13: the backend is a deterministic score renderer, so there is no style prompt to check."
     - "S7 by ear: not done. Nobody has listened to these renders; acceptance so far is by measurement only."
+title_theme:   # title.score: the title screen loop, compose.py title()
+  intent: "An invitation, not the game's drive: the theme's world at rest, so the crossfade into it sounds like the same piece starting."
+  tempo: 155.97        # nearest to 156 at which 10 bars last exactly 497 mixer blocks (TITLE_TEMPO)
+  meter: "12/8, 3 + 4 + 5"
+  bars: 10
+  duration_s: 46.2
+  harmony_letters: "|Dm9 |Dm9 |Bbmaj7 |Fmaj7 |Dm9 |Am7 |Bbmaj7 |G |Gm6 |Am7 |"
+  material: "The motif's head (D A G and its sequences) only, by a horn, the middle of each bar left open; violins double it an octave up from bar 5."
+  roster: [celli pizzicato (cell of 3, every bar), violas spiccato (cell of 4, odd bars), synth glass (cell of 5, even bars), bowed strings pad, double bass, low D drone, one tick a bar]
+  loop: "loop on; the last bar's Am7 pad rings into the Dm9 at the top"
+  measured: {frames: 2035712, blocks: 497, peak_dBFS: -3.3, rms_dBFS: -19.8}
 messages: []

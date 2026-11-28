@@ -110,7 +110,8 @@ the two music cues use 400 ms.
 | `GameOver` | The next piece has no room (`GameOver`). | The motif, slower and lower. It replaces the theme. | 0.70 | -11.5 | +4.7 |
 | `Pause`, `Resume` | The game pauses or resumes, by P or by itself. | Two glass notes: down for pause, up for resume. | 0.20 | -20.0 | -3.8 |
 | `NewGame` | R starts a new game. | Three glass notes, rising. | 0.22 | -19.1 | -0.9 |
-| `Theme` | The game starts, and at every new game. | The looping theme. | 0.60 | -10.9 | 0 |
+| `Title` | The title screen opens. | The opening theme: the game theme's chords and cells, slower and calmer, 46 s round. It fades out under `Theme` when a game starts. | 0.60 | -10.8 | +6.2 |
+| `Theme` | A game starts, and at every new game. | The looping theme. | 0.60 | -10.9 | 0 |
 
 `python3 tools/sound/bench.py sheet` prints this table from the files and the
 levels as they are. Run it after changing either.
@@ -185,6 +186,14 @@ changes, so P and the automatic pause sound the same.
 A pause during a row clear finds the theme lowered. The theme fades out from
 there. Its lowering is no longer held, and lets go at `DUCK_RELEASE` as usual:
 were it dropped at once, the theme would jump up before it fades.
+
+### Title screen
+
+`Desk::title` loops `Title` and nothing else. `Desk::restart` from the title screen
+does not cut it: it fades out over `TITLE_FADE` (`1.2` s, equal-power) while
+`Theme` starts. `Desk::back_to_title` stops everything and loops `Title` again.
+Both themes sit at the same loudness (median -25.8 and -26.0, K-weighted), so
+the crossfade does not jump.
 
 ### New game
 

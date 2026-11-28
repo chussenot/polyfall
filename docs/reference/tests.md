@@ -1,6 +1,6 @@
 ---
 title: Tests
-description: What each of the 55 unit tests in src/main.rs, src/fx.rs, src/sound.rs, src/best.rs and src/stage.rs proves, and which behaviour has no test.
+description: What each of the 58 unit tests in src/main.rs, src/fx.rs, src/sound.rs, src/best.rs and src/stage.rs proves, and which behaviour has no test.
 source:
   - tests::random_pieces_spawn_inside_the_well
   - tests::landing_row_stops_on_the_stack_or_the_floor
@@ -33,13 +33,13 @@ you change game logic, to know whether a test will catch a mistake.
 
 ## How the tests work
 
-There are 55 tests: 22 for the game in the `tests` module at the end of
+There are 58 tests: 22 for the game in the `tests` module at the end of
 `src/main.rs`, 14 for the effects in the `tests` module at the end of
-`src/fx.rs`, 13 for the sound in the `tests` module at the end of
+`src/fx.rs`, 16 for the sound in the `tests` module at the end of
 `src/sound.rs`, 2 for the best score in `src/best.rs`, and 4 for the staging
 keys in `src/stage.rs`. Run them with `mise run test`, which is
 `cargo test --all-features`: plain `cargo test` leaves the staging keys out and
-runs 51. They open no window and play no
+runs 54. They open no window and play no
 sound. Each test builds a `Game`, sets
 fields by hand to create a situation, calls one function and checks the result.
 
@@ -149,6 +149,9 @@ check behaviour, not exact levels. [Sound](sound.md) describes what they test.
 | `a_pause_cuts_what_was_ringing_and_fades_the_theme_out_and_back` | A pause in the middle of a four-row clear stops every cue but the theme, plays `Pause` once, and takes the theme to silence in about `FADE_OUT` from where the clear had lowered it, without ever raising it. A long pause orders nothing more. A resume plays `Resume` once and brings the theme back in about `FADE_IN`, not held down by the clear the pause cut. |
 | `the_end_stops_the_theme_and_nothing_brings_it_back` | `GameOver` stops the theme and a level-up cue from the same lock, and plays its own cue. No later frame changes the theme's volume. |
 | `a_new_game_silences_the_old_one_and_starts_the_theme_again` | `Desk::restart` first stops every cue, then loops the theme and plays `NewGame`. Nothing of the old game is left: no duck, no ending, no soft-drop loop. |
+| `the_title_screen_plays_the_title_theme_and_nothing_else` | `Desk::title` loops `Title` once and orders nothing more for 30 s. |
+| `a_game_started_from_the_title_fades_the_title_theme_out_under_the_game_theme` | From the title, `restart` does not stop `Title`, starts `Theme` and `NewGame`, and lowers `Title` steadily until it is stopped within `TITLE_FADE`. A later restart has no title left to fade. |
+| `back_to_the_title_stops_the_game_and_starts_the_title_theme` | `back_to_title` stops every cue, loops `Title`, and leaves no duck behind. |
 | `every_cue_has_a_file_and_a_level_that_cannot_clip_alone` | Every cue has a file compiled in and a level between 0 and 1, and its index is its place in `Cue::ALL`. |
 
 ### Staging keys

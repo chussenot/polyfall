@@ -308,8 +308,72 @@ def game_over():
     (OUT / "game_over.score").write_text(head + s.text())
 
 
+# The title theme: the same cells and harmony, a quarter slower, with room between the notes.
+# Its loop obeys the same mixer rule as the theme's: 10 bars at the tempo, nearest to 156, at
+# which they last a whole number of blocks.
+TITLE_BARS = 10
+TITLE_BLOCKS = round(TITLE_BARS * BAR * 60 / 156 * RATE / BLOCK)
+TITLE_TEMPO = TITLE_BARS * BAR * 60 * RATE / (TITLE_BLOCKS * BLOCK)
+
+TITLE_FORM = ["Dm9", "Dm9", "Bbmaj7", "Fmaj7", "Dm9", "Am7", "Bbmaj7", "G", "Gm6", "Am7"]
+# The motif, stretched: only its head and its landing, with the middle of the bar left open.
+TITLE_MELODY = [
+    None,
+    "D4:1 A4:1 G4:1  F4:4  -:5",
+    "F4:1 D5:1 C5:1  -:4  A4:5",
+    "C4:1 A4:1 G4:1  F4:2 E4:2  -:5",
+    "D4:1 A4:1 C5:1  B4:4  A4:5",
+    "E4:1 C5:1 B4:1  -:4  G4:2 A4:3",
+    "Bb4:1 F5:1 E5:1  D5:4  -:5",
+    "D4:1 B4:1 A4:1  G4:4  -:5",
+    "G4:1 D5:1 Bb4:1  A4:4  -:5",
+    None,
+]
+
+
+def title():
+    """The title screen: an invitation, not the game's drive. The low cell counts every bar, the
+    other two cells come and go, a horn says the motif's head and the strings hold the chord.
+    No bass, no kick; the last bar breathes on Am7 and its pad rings into the top of the loop."""
+    s = Score(11)
+    for n, ch in enumerate(TITLE_FORM):
+        t0 = n * BAR
+        low, mid, high, (bass,), pad = (x.split() for x in CHORDS[ch])
+        for k, p in enumerate(low):  # the count of three, softly, every bar
+            s.note(t0 + k, 1.4, "strings_low_pizz", p, (80, 58, 64)[k], late_ms=7, loose_ms=5)
+        if n % 2 == 1:  # the middle cell every other bar, the glass on the bars between
+            for k, p in enumerate(mid):
+                s.note(t0 + 3 + k, 0.6, "strings_mid_spic", p, (66, 50, 58, 48)[k], loose_ms=6)
+        elif n > 0:
+            for k, p in enumerate(high):
+                s.note(t0 + 7 + k, 1.2, "synth_glass", p, (66, 50, 56, 62, 48)[k], late_ms=-6, loose_ms=3)
+        s.note(t0, 0.1, "electronic_metal", "C6", 54, wobble=3)  # one tick: the bar begins
+        for p, inst in zip(pad, ("strings_low", "strings_mid", "strings_mid")):
+            s.note(t0, BAR + 1, inst, p, 50, wobble=3)
+        s.note(t0, BAR, "strings_bass", bass, 52, late_ms=8, wobble=3)
+        line = TITLE_MELODY[n]
+        if line:
+            for at, dur, p in parse(line):
+                s.note(t0 + at, dur * 0.97, "brass_horns", p, 66, late_ms=14, loose_ms=6)
+                if n >= 4:
+                    s.note(t0 + at, dur * 0.97, "strings_high", midi(p) + 12, 56, late_ms=10, loose_ms=6)
+    s.note(0, TITLE_BARS * BAR, "electronic_drone", "D2", 60, wobble=0)
+    for inst, trim in TRIMS.items():
+        s.raw(0, f"ramp {inst}.gain 0 0.01 {trim} {trim}")
+    s.raw(0, f"ramp master.gain 0 0.01 {TITLE_TRIM} {TITLE_TRIM}")
+    length = TITLE_BARS * BAR
+    head = HEADER.format(title="Polyfall: title", tempo=TITLE_TEMPO, length=length, loop="loop on")
+    (OUT / "title.score").write_text(head + s.text())
+    return length
+
+
+TITLE_TRIM = 5  # dB on the title's master: set so the rendered file peaks near -3 dBFS
+
+
 if __name__ == "__main__":
     beats = theme()
     level_up()
     game_over()
+    tb = title()
+    print(f"title: {tb} beats, {tb / TITLE_TEMPO * 60:.1f} s, {TITLE_BLOCKS} blocks")
     print(f"theme: {beats} beats, {beats / TEMPO * 60:.1f} s")

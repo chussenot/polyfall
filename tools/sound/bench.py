@@ -29,7 +29,7 @@ import recording
 import sig
 
 EFFECT_PEAK = -3.0        # dBFS every effect file and the level-up are brought to
-MUSIC = ("theme", "level_up", "game_over")
+MUSIC = ("title", "theme", "level_up", "game_over")
 ORDER = ["soft_drop", "move_left", "move_right", "rotate", "blocked", "lock", "hard_drop",
          "clear_1", "clear_2", "clear_3", "clear_4", "clear_5", "pause", "resume", "new_game",
          "level_up", "game_over"]
@@ -64,7 +64,7 @@ def check_files():
         if name in game.LOOPS and len(x) % game.BLOCK:
             failures.append(f"{name}: a loop of {len(x)} frames is not a whole number of {game.BLOCK}-frame blocks "
                             f"({len(x) % game.BLOCK} frames over). The mixer will play the start of each pass early and leave a hole.")
-        if name not in ("theme", "game_over") and abs(sig.peak(x) - EFFECT_PEAK) > 0.5:
+        if name not in ("title", "theme", "game_over") and abs(sig.peak(x) - EFFECT_PEAK) > 0.5:
             failures.append(f"{name}: peaks at {sig.peak(x):.1f} dBFS, not {EFFECT_PEAK:.0f}. Its level in src/sound.rs assumes {EFFECT_PEAK:.0f}; run `bench.py trim`.")
         if name not in MUSIC and starts > 5:
             failures.append(f"{name}: silent for its first {starts:.0f} ms. The mixer already adds a delay of its own.")

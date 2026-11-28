@@ -5,8 +5,10 @@ mod fx;
 mod sound;
 #[cfg(feature = "stage")]
 mod stage;
+mod title;
 use fx::{alpha, ease_out, Fx};
 use sound::{Desk, Speakers};
+use title::Title;
 
 const W: i32 = 12;
 const H: i32 = 22;
@@ -519,13 +521,13 @@ impl Game {
                 } else {
                     format!("Score {}  best {}", self.score, self.best)
                 },
-                "R  new game".to_string(),
+                "R  new game    Esc  title".to_string(),
             ]
         } else if self.paused {
             [
                 "Paused".to_string(),
                 "P  resume".to_string(),
-                "R  new game".to_string(),
+                "R  new game    Esc  title".to_string(),
             ]
         } else {
             return;
@@ -591,6 +593,13 @@ fn conf() -> Conf {
     }
 }
 
+/// What the window shows: the title screen, or a game.
+#[derive(PartialEq)]
+enum Screen {
+    Title,
+    Play,
+}
+
 #[macroquad::main(conf)]
 async fn main() {
     // microseconds: two games started within the same second must not get the same pieces
@@ -602,25 +611,72 @@ async fn main() {
         best::file()
     };
     let mut best = best::load(best_file.as_deref());
+    // a game left with a score above the best becomes the best
+    let mut keep = |score: u32| {
+        if score > best {
+            best = score;
+            best::save(best_file.as_deref(), best);
+        }
+        best
+    };
+    // the sound bench presses game keys from its first second: a staged build skips the title
+    let mut screen = if cfg!(feature = "stage") {
+        Screen::Play
+    } else {
+        Screen::Title
+    };
+    let mut title = Title::default();
     let mut game = Game::new();
-    game.best = best;
+    game.best = keep(0);
     let mut fx = Fx::default();
     let mut speakers = Speakers::load().await;
-    let mut desk = Desk::new(); // its first order starts the theme
+    let mut desk = if screen == Screen::Title {
+        Desk::title()
+    } else {
+        Desk::new()
+    };
     loop {
-        if is_key_pressed(KeyCode::R) && game.can_restart() {
-            if game.score > best {
-                // a game given up from the pause counts too
-                best = game.score;
-                best::save(best_file.as_deref(), best);
+        if is_key_pressed(KeyCode::M) {
+            speakers.toggle_mute();
+        }
+        if screen == Screen::Title {
+            if is_key_pressed(KeyCode::Escape) {
+                break;
             }
+            // one key from launch to play
+            if [KeyCode::Enter, KeyCode::KpEnter, KeyCode::Space]
+                .into_iter()
+                .any(is_key_pressed)
+            {
+                screen = Screen::Play;
+                game = Game::new();
+                game.best = keep(game.score);
+                fx = Fx::default();
+                desk.restart();
+            } else {
+                title.tick(get_frame_time());
+                desk.frame(false, get_frame_time());
+                speakers.obey(desk.orders());
+                title.draw(game.best, speakers.muted());
+                next_frame().await;
+                continue;
+            }
+        }
+        if is_key_pressed(KeyCode::Escape) && game.can_restart() {
+            game.best = keep(game.score);
+            screen = Screen::Title;
+            title = Title::default();
+            desk.back_to_title();
+            speakers.obey(desk.orders());
+            next_frame().await;
+            continue;
+        }
+        if is_key_pressed(KeyCode::R) && game.can_restart() {
+            let best = keep(game.score);
             game = Game::new();
             game.best = best;
             fx = Fx::default();
             desk.restart();
-        }
-        if is_key_pressed(KeyCode::M) {
-            speakers.toggle_mute();
         }
         if is_key_pressed(KeyCode::P) && !game.over {
             game.paused = !game.paused;
@@ -632,10 +688,10 @@ async fn main() {
             game.update();
         }
         // effects and sound only listen: they take what happened and never hand anything back
+        let score = game.score;
         for event in game.events.drain(..) {
-            if event == Event::GameOver && game.score > best {
-                best = game.score;
-                best::save(best_file.as_deref(), best);
+            if event == Event::GameOver {
+                keep(score);
             }
             desk.on(&event);
             fx.on(event);
